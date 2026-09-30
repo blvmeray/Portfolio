@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. REACTIVE MACRO LCD DISPLAY (PHOSPHOR DECAY & DYNAMIC VIBRATION)
+// 4. REACTIVE MACRO LCD DISPLAY (GLOW, DITHER & DYNAMIC FOCUS)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -103,17 +103,17 @@ function initHeroCanvas() {
     let width, height;
     let cols = 0;
     let rows = 0;
-    let gridEnergy = []; // Energy buffer for phosphor decay trail
+    let gridEnergy = []; 
 
     const mouse = { x: -1000, y: -1000 };
 
-    // Larger Zoom Macro Dimensions
-    const tileW = 50; 
-    const tileH = 42; 
-    const subW = 11.5;
-    const subH = 26;
+    // Macro Grid Dimensions
+    const tileW = 52; 
+    const tileH = 44; 
+    const subW = 12;
+    const subH = 28;
     const subY = 8;
-    const radius = 3;
+    const radius = 2;
 
     function resize() {
         width = canvas.width = window.innerWidth;
@@ -122,7 +122,6 @@ function initHeroCanvas() {
         cols = Math.ceil(width / tileW) + 1;
         rows = Math.ceil(height / tileH) + 1;
         
-        // Reset energy array on resize
         gridEnergy = new Float32Array(cols * rows);
     }
 
@@ -140,9 +139,19 @@ function initHeroCanvas() {
 
     resize();
 
-    // Helper to draw rounded subpixel bars
-    function drawSubpixel(x, y, color) {
-        ctx.fillStyle = color;
+    // Draw realistic LCD subpixel with electrode notches, phosphor bloom & edge dither
+    function drawLCDSubpixel(x, y, r, g, b, brightness, energy) {
+        ctx.save();
+
+        // Phosphor Glow & Dynamic Blur/Focus Transition
+        // Dim subpixels have a soft diffuse glow; charged ones snap into a bright halo
+        const glowBlur = 3 + (1 - energy) * 5 + energy * 12;
+        ctx.shadowColor = `rgba(${r}, ${g}, ${b}, ${0.35 + energy * 0.55})`;
+        ctx.shadowBlur = glowBlur;
+
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${brightness})`;
+
+        // Main subpixel body
         ctx.beginPath();
         if (ctx.roundRect) {
             ctx.roundRect(x, y, subW, subH, radius);
@@ -150,15 +159,31 @@ function initHeroCanvas() {
             ctx.rect(x, y, subW, subH);
         }
         ctx.fill();
+
+        // 1. Horizontal Electrode Notches (Breaks up flat vector rects into LCD matrix bars)
+        ctx.fillStyle = `rgba(2, 2, 4, ${0.45 - energy * 0.25})`;
+        ctx.fillRect(x, y + subH * 0.33, subW, 1.5);
+        ctx.fillRect(x, y + subH * 0.66, subW, 1.5);
+
+        // 2. Micro Edge Dithering / Pixel Grain on Dim/Blurred pixels
+        if (energy < 0.65) {
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${(1 - energy) * 0.3})`;
+            const noise1 = (Math.random() - 0.5) * 1.8;
+            const noise2 = (Math.random() - 0.5) * 1.8;
+            ctx.fillRect(x - 0.8, y + 4 + noise1, 1, 3);
+            ctx.fillRect(x + subW - 0.2, y + 14 + noise2, 1, 3);
+        }
+
+        ctx.restore();
     }
 
     function animate() {
-        // Dark substrate background
-        ctx.fillStyle = '#030305';
+        // Deep black substrate
+        ctx.fillStyle = '#020204';
         ctx.fillRect(0, 0, width, height);
 
-        const hoverRadius = 240;
-        const baseBrightness = 0.28; // Increased base visibility
+        const hoverRadius = 250;
+        const baseBrightness = 0.30; 
         const maxBrightness = 0.98;
 
         for (let r = 0; r < rows; r++) {
@@ -175,31 +200,33 @@ function initHeroCanvas() {
                 // Charge pixel energy if cursor is nearby
                 if (dist < hoverRadius) {
                     const factor = 1 - (dist / hoverRadius);
-                    const targetEnergy = Math.pow(factor, 1.4);
+                    const targetEnergy = Math.pow(factor, 1.3);
                     if (targetEnergy > gridEnergy[idx]) {
                         gridEnergy[idx] = targetEnergy;
                     }
                 }
 
-                // Decay current pixel energy over time (smooth fading trail)
-                gridEnergy[idx] *= 0.925;
+                // Smooth phosphor decay trail
+                gridEnergy[idx] *= 0.92;
                 if (gridEnergy[idx] < 0.001) gridEnergy[idx] = 0;
 
-                const currentEnergy = gridEnergy[idx];
-                const brightness = baseBrightness + currentEnergy * (maxBrightness - baseBrightness);
+                const energy = gridEnergy[idx];
+                const brightness = baseBrightness + energy * (maxBrightness - baseBrightness);
 
-                // Dynamic Jitter: Violently shakes when charged (energy ~1.0), subtle when idle
-                const jitterMagnitude = 0.35 + currentEnergy * 3.8; 
+                // Dynamic Vibration / Violent Jitter under active mouse
+                const jitterMagnitude = 0.35 + energy * 4.2; 
                 const jitterX = (Math.random() - 0.5) * jitterMagnitude;
                 const jitterY = (Math.random() - 0.5) * jitterMagnitude;
 
                 const drawX = cellX + jitterX;
                 const drawY = cellY + subY + jitterY;
 
-                // Render RGB subpixel triplet
-                drawSubpixel(drawX + 4, drawY, `rgba(240, 45, 45, ${brightness})`);
-                drawSubpixel(drawX + 19.5, drawY, `rgba(45, 240, 45, ${brightness})`);
-                drawSubpixel(drawX + 35, drawY, `rgba(45, 125, 255, ${brightness})`);
+                // Red Subpixel
+                drawLCDSubpixel(drawX + 4, drawY, 245, 45, 45, brightness, energy);
+                // Green Subpixel
+                drawLCDSubpixel(drawX + 20, drawY, 45, 245, 45, brightness, energy);
+                // Blue Subpixel
+                drawLCDSubpixel(drawX + 36, drawY, 45, 125, 255, brightness, energy);
             }
         }
 
