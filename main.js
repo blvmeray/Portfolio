@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. REACTIVE MACRO LCD DISPLAY (GLOW, DITHER & DYNAMIC FOCUS)
+// 4. HIGH-PERFORMANCE GENERATIVE KINETIC RGB FIELD
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -101,35 +101,52 @@ function initHeroCanvas() {
     const ctx = canvas.getContext('2d');
 
     let width, height;
-    let cols = 0;
-    let rows = 0;
-    let gridEnergy = []; 
+    let grid = [];
+    const spacing = 36; // Distance between kinetic nodes
 
-    const mouse = { x: -1000, y: -1000 };
+    const mouse = { x: -1000, y: -1000, vx: 0, vy: 0, lastX: -1000, lastY: -1000 };
 
-    // Macro Grid Dimensions
-    const tileW = 52; 
-    const tileH = 44; 
-    const subW = 12;
-    const subH = 28;
-    const subY = 8;
-    const radius = 2;
+    function buildGrid() {
+        grid = [];
+        const cols = Math.ceil(width / spacing) + 1;
+        const rows = Math.ceil(height / spacing) + 1;
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                grid.push({
+                    baseX: c * spacing,
+                    baseY: r * spacing,
+                    x: c * spacing,
+                    y: r * spacing,
+                    vx: 0,
+                    vy: 0,
+                    size: (c % 2 === 0 && r % 2 === 0) ? 4 : 2, // Varied glyph sizes
+                    isCross: (c + r) % 3 === 0
+                });
+            }
+        }
+    }
 
     function resize() {
         width = canvas.width = window.innerWidth;
         height = canvas.height = window.innerHeight;
-        
-        cols = Math.ceil(width / tileW) + 1;
-        rows = Math.ceil(height / tileH) + 1;
-        
-        gridEnergy = new Float32Array(cols * rows);
+        buildGrid();
     }
 
     window.addEventListener('resize', resize);
     window.addEventListener('mousemove', (e) => {
         const rect = canvas.getBoundingClientRect();
-        mouse.x = e.clientX - rect.left;
-        mouse.y = e.clientY - rect.top;
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
+
+        mouse.vx = currentX - mouse.lastX;
+        mouse.vy = currentY - mouse.lastY;
+
+        mouse.x = currentX;
+        mouse.y = currentY;
+
+        mouse.lastX = currentX;
+        mouse.lastY = currentY;
     });
 
     window.addEventListener('mouseleave', () => {
@@ -139,94 +156,93 @@ function initHeroCanvas() {
 
     resize();
 
-    // Draw realistic LCD subpixel with electrode notches, phosphor bloom & edge dither
-    function drawLCDSubpixel(x, y, r, g, b, brightness, energy) {
-        ctx.save();
-
-        // Phosphor Glow & Dynamic Blur/Focus Transition
-        // Dim subpixels have a soft diffuse glow; charged ones snap into a bright halo
-        const glowBlur = 3 + (1 - energy) * 5 + energy * 12;
-        ctx.shadowColor = `rgba(${r}, ${g}, ${b}, ${0.35 + energy * 0.55})`;
-        ctx.shadowBlur = glowBlur;
-
-        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${brightness})`;
-
-        // Main subpixel body
+    // Helper to render glyph shapes cleanly
+    function drawNode(x, y, size, isCross, color) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.2;
         ctx.beginPath();
-        if (ctx.roundRect) {
-            ctx.roundRect(x, y, subW, subH, radius);
+
+        if (isCross) {
+            ctx.moveTo(x - size, y);
+            ctx.lineTo(x + size, y);
+            ctx.moveTo(x, y - size);
+            ctx.lineTo(x, y + size);
         } else {
-            ctx.rect(x, y, subW, subH);
-        }
-        ctx.fill();
-
-        // 1. Horizontal Electrode Notches (Breaks up flat vector rects into LCD matrix bars)
-        ctx.fillStyle = `rgba(2, 2, 4, ${0.45 - energy * 0.25})`;
-        ctx.fillRect(x, y + subH * 0.33, subW, 1.5);
-        ctx.fillRect(x, y + subH * 0.66, subW, 1.5);
-
-        // 2. Micro Edge Dithering / Pixel Grain on Dim/Blurred pixels
-        if (energy < 0.65) {
-            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${(1 - energy) * 0.3})`;
-            const noise1 = (Math.random() - 0.5) * 1.8;
-            const noise2 = (Math.random() - 0.5) * 1.8;
-            ctx.fillRect(x - 0.8, y + 4 + noise1, 1, 3);
-            ctx.fillRect(x + subW - 0.2, y + 14 + noise2, 1, 3);
+            ctx.moveTo(x - size * 0.8, y);
+            ctx.lineTo(x + size * 0.8, y);
         }
 
-        ctx.restore();
+        ctx.stroke();
     }
 
     function animate() {
-        // Deep black substrate
-        ctx.fillStyle = '#020204';
+        // Dark background clearing
+        ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, width, height);
 
-        const hoverRadius = 250;
-        const baseBrightness = 0.30; 
-        const maxBrightness = 0.98;
+        const hoverRadius = 180;
+        const forceFactor = 0.35;
 
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                const idx = r * cols + c;
-                const cellX = c * tileW;
-                const cellY = r * tileH;
+        // Update Physics & Springs
+        for (let i = 0; i < grid.length; i++) {
+            const p = grid[i];
 
-                const centerX = cellX + tileW / 2;
-                const centerY = cellY + tileH / 2;
+            // Distance to mouse
+            const dx = mouse.x - p.x;
+            const dy = mouse.y - p.y;
+            const dist = Math.hypot(dx, dy);
 
-                const dist = Math.hypot(centerX - mouse.x, centerY - mouse.y);
+            if (dist < hoverRadius && dist > 0) {
+                const force = (1 - dist / hoverRadius) * forceFactor;
+                const angle = Math.atan2(dy, dx);
 
-                // Charge pixel energy if cursor is nearby
-                if (dist < hoverRadius) {
-                    const factor = 1 - (dist / hoverRadius);
-                    const targetEnergy = Math.pow(factor, 1.3);
-                    if (targetEnergy > gridEnergy[idx]) {
-                        gridEnergy[idx] = targetEnergy;
-                    }
-                }
+                // Push point away from cursor based on mouse velocity
+                p.vx -= Math.cos(angle) * force * 8;
+                p.vy -= Math.sin(angle) * force * 8;
+            }
 
-                // Smooth phosphor decay trail
-                gridEnergy[idx] *= 0.92;
-                if (gridEnergy[idx] < 0.001) gridEnergy[idx] = 0;
+            // Spring return force to base position
+            const springDx = p.baseX - p.x;
+            const springDy = p.baseY - p.y;
 
-                const energy = gridEnergy[idx];
-                const brightness = baseBrightness + energy * (maxBrightness - baseBrightness);
+            p.vx += springDx * 0.08;
+            p.vy += springDy * 0.08;
 
-                // Dynamic Vibration / Violent Jitter under active mouse
-                const jitterMagnitude = 0.35 + energy * 4.2; 
-                const jitterX = (Math.random() - 0.5) * jitterMagnitude;
-                const jitterY = (Math.random() - 0.5) * jitterMagnitude;
+            // Friction / Damping
+            p.vx *= 0.82;
+            p.vy *= 0.82;
 
-                const drawX = cellX + jitterX;
-                const drawY = cellY + subY + jitterY;
+            p.x += p.vx;
+            p.y += p.vy;
 
-                // Red Subpixel
-                drawLCDSubpixel(drawX + 4, drawY, 245, 45, 45, brightness, energy);
-                // Green Subpixel
-                drawLCDSubpixel(drawX + 20, drawY, 45, 245, 45, brightness, energy);
-                // Blue Subpixel
-                drawLCDSubpixel(drawX + 36, drawY, 45, 125, 255, brightness, energy);
+            // Chromatic Separation Vector
+            const displacement = Math.hypot(p.x - p.baseX, p.y - p.baseY);
+            const splitOffset = Math.min(displacement * 0.45, 14);
+
+            // Draw Base Dim Node if motionless
+            if (splitOffset < 0.4) {
+                drawNode(p.x, p.y, p.size, p.isCross, 'rgba(255, 255, 255, 0.18)');
+            } else {
+                // RED Channel Offset (Natron RGB Split)
+                drawNode(
+                    p.x - splitOffset,
+                    p.y - splitOffset * 0.5,
+                    p.size + splitOffset * 0.2,
+                    p.isCross,
+                    `rgba(255, 45, 85, ${0.4 + splitOffset * 0.05})`
+                );
+
+                // CYAN / BLUE Channel Offset
+                drawNode(
+                    p.x + splitOffset,
+                    p.y + splitOffset * 0.5,
+                    p.size + splitOffset * 0.2,
+                    p.isCross,
+                    `rgba(0, 230, 255, ${0.4 + splitOffset * 0.05})`
+                );
+
+                // WHITE Center Core
+                drawNode(p.x, p.y, p.size, p.isCross, 'rgba(255, 255, 255, 0.85)');
             }
         }
 
