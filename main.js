@@ -1,6 +1,5 @@
 // ==========================================================
 // 1. ARTWORK DATA CATALOG
-// Add new artwork items here in the future!
 // ==========================================================
 const artworks = [
     {
@@ -94,9 +93,6 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. INTERACTIVE LCD SUBPIXEL CANVAS SIMULATION
-// ==========================================================
-// ==========================================================
 // 4. INTERACTIVE MACRO LCD SUBPIXEL CANVAS SIMULATION
 // ==========================================================
 function initHeroCanvas() {
@@ -131,28 +127,27 @@ function initHeroCanvas() {
         const subW = 5;      // Width of each R, G, B bar
         const subH = 14;     // Height of each bar
         const subY = 3;      // Top padding (leaves black gaps between rows)
-        const radius = 1.5;  // Slightly rounded corners like real subpixels
 
-        // Helper function for rounded subpixel bars
+        // Helper function for subpixel bars
         function drawSubpixel(x, color) {
             pCtx.fillStyle = color;
             pCtx.beginPath();
             if (pCtx.roundRect) {
-                pCtx.roundRect(x, subY, subW, subH, radius);
+                pCtx.roundRect(x, subY, subW, subH, 1.5);
             } else {
                 pCtx.rect(x, subY, subW, subH);
             }
             pCtx.fill();
         }
 
-        // 1. Red Subpixel (left = 2px, 2px gap to green)
-        drawSubpixel(2, 'rgba(240, 30, 30, 0.40)');
+        // 1. Red Subpixel
+        drawSubpixel(2, 'rgba(240, 30, 30, 0.45)');
 
-        // 2. Green Subpixel (left = 8.5px, 2px gap to blue)
-        drawSubpixel(8.5, 'rgba(30, 240, 30, 0.40)');
+        // 2. Green Subpixel
+        drawSubpixel(8.5, 'rgba(30, 240, 30, 0.45)');
 
-        // 3. Blue Subpixel (left = 15px, 2px gap to next pixel)
-        drawSubpixel(15, 'rgba(30, 110, 255, 0.40)');
+        // 3. Blue Subpixel
+        drawSubpixel(15, 'rgba(30, 110, 255, 0.45)');
 
         lcdPattern = ctx.createPattern(pCanvas, 'repeat');
     }
@@ -231,3 +226,9 @@ function initHeroCanvas() {
 
     animate();
 }
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    renderGallery();
+    initHeroCanvas();
+});
