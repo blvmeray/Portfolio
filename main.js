@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. FULL-PAGE GENERATIVE KINETIC RGB FIELD (SCROLL-REACTIVE)
+// 4. FULL-PAGE GENERATIVE KINETIC RGB FIELD (HIGH-IMPACT SCROLL)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -137,7 +137,7 @@ function initHeroCanvas() {
 
     window.addEventListener('resize', resize);
     
-    // Track mouse position relative to viewport
+    // Viewport mouse tracking
     window.addEventListener('mousemove', (e) => {
         const currentX = e.clientX;
         const currentY = e.clientY;
@@ -152,13 +152,14 @@ function initHeroCanvas() {
         mouse.lastY = currentY;
     });
 
-    // Track scroll velocity for kinetic motion blur & cursor scrubbing
+    // High-sensitivity scroll velocity listener
     window.addEventListener('scroll', () => {
         const currentScrollY = window.scrollY;
         const deltaY = currentScrollY - lastScrollY;
-        scrollVelocity += deltaY * 0.75;
+        // Amplified scroll impulse multiplier
+        scrollVelocity += deltaY * 2.8;
         lastScrollY = currentScrollY;
-    });
+    }, { passive: true });
 
     window.addEventListener('mouseleave', () => {
         mouse.x = -1000;
@@ -167,7 +168,7 @@ function initHeroCanvas() {
 
     resize();
 
-    // Render node with optional vertical motion streak
+    // Render node with vertical streak trails
     function drawNode(x, y, size, isCross, color, streak = 0) {
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.2;
@@ -193,21 +194,24 @@ function initHeroCanvas() {
         ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, width, height);
 
-        // Smoothly dampen scroll velocity
-        scrollVelocity *= 0.86;
+        // Slightly longer decay to keep scroll energy visible while moving down
+        scrollVelocity *= 0.88;
         const absScrollVel = Math.abs(scrollVelocity);
 
-        const hoverRadius = 180;
+        const hoverRadius = 220;
         const forceFactor = 0.35;
 
         for (let i = 0; i < grid.length; i++) {
             const p = grid[i];
 
+            // 1. Global scroll displacement force on every node
+            p.vy -= scrollVelocity * 0.12;
+
+            // 2. Cursor local proximity force
             const dx = mouse.x - p.x;
             const dy = mouse.y - p.y;
             const dist = Math.hypot(dx, dy);
 
-            // Cursor proximity force
             if (dist < hoverRadius && dist > 0) {
                 const force = (1 - dist / hoverRadius) * forceFactor;
                 const angle = Math.atan2(dy, dx);
@@ -215,27 +219,27 @@ function initHeroCanvas() {
                 p.vx -= Math.cos(angle) * force * 8;
                 p.vy -= Math.sin(angle) * force * 8;
 
-                // Scrubbing effect: Scroll movement applies vertical impulse under cursor
-                p.vy -= scrollVelocity * force * 0.45;
+                // Extra vertical distortion kick right under the cursor when scrolling
+                p.vy -= scrollVelocity * force * 0.85;
             }
 
-            // Spring return force
+            // Spring return force back to base grid coordinates
             const springDx = p.baseX - p.x;
             const springDy = p.baseY - p.y;
 
             p.vx += springDx * 0.08;
             p.vy += springDy * 0.08;
 
-            p.vx *= 0.82;
-            p.vy *= 0.82;
+            p.vx *= 0.80;
+            p.vy *= 0.80;
 
             p.x += p.vx;
             p.y += p.vy;
 
-            // Chromatic Separation Offset + Scroll Motion Streaks
+            // Chromatic Separation & Vertical Motion Blur Streaks
             const displacement = Math.hypot(p.x - p.baseX, p.y - p.baseY);
-            const splitOffset = Math.min(displacement * 0.45 + absScrollVel * 0.22, 18);
-            const streak = Math.min(absScrollVel * 0.7, 24);
+            const splitOffset = Math.min(displacement * 0.45 + absScrollVel * 0.65, 32);
+            const streak = Math.min(absScrollVel * 1.8, 45);
 
             if (splitOffset < 0.4 && streak < 0.4) {
                 drawNode(p.x, p.y, p.size, p.isCross, 'rgba(255, 255, 255, 0.18)', 0);
@@ -246,7 +250,7 @@ function initHeroCanvas() {
                     p.y - splitOffset * 0.5,
                     p.size + splitOffset * 0.2,
                     p.isCross,
-                    `rgba(255, 45, 85, ${0.4 + splitOffset * 0.04})`,
+                    `rgba(255, 45, 85, ${0.45 + splitOffset * 0.03})`,
                     streak
                 );
 
@@ -256,12 +260,12 @@ function initHeroCanvas() {
                     p.y + splitOffset * 0.5,
                     p.size + splitOffset * 0.2,
                     p.isCross,
-                    `rgba(0, 230, 255, ${0.4 + splitOffset * 0.04})`,
+                    `rgba(0, 230, 255, ${0.45 + splitOffset * 0.03})`,
                     streak
                 );
 
                 // WHITE Center Core
-                drawNode(p.x, p.y, p.size, p.isCross, 'rgba(255, 255, 255, 0.85)', streak * 0.5);
+                drawNode(p.x, p.y, p.size, p.isCross, 'rgba(255, 255, 255, 0.90)', streak * 0.5);
             }
         }
 
