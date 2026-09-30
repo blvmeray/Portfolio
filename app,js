@@ -28,8 +28,11 @@ const artworks = [
     }
 ];
 
-// Set dynamic current year in footer
-document.getElementById('year').textContent = new Date().getFullYear();
+// Safe element check
+const yearEl = document.getElementById('year');
+if (yearEl) {
+    yearEl.textContent = new Date().getFullYear();
+}
 
 // ==========================================================
 // 2. RENDER GALLERY GRID (KEEP AS IS)
