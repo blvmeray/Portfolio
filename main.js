@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. FULL-PAGE GENERATIVE KINETIC RGB FIELD (BALANCED + BOUNCE)
+// 4. FULL-PAGE GENERATIVE KINETIC RGB FIELD (FEATHERED & HIGH DYNAMIC)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -137,7 +137,7 @@ function initHeroCanvas() {
 
     window.addEventListener('resize', resize);
     
-    // Viewport mouse tracking
+    // Track mouse coordinates across viewport
     window.addEventListener('mousemove', (e) => {
         const currentX = e.clientX;
         const currentY = e.clientY;
@@ -152,19 +152,18 @@ function initHeroCanvas() {
         mouse.lastY = currentY;
     });
 
-    // Scroll listener with boundary rebound detection
+    // Scroll velocity listener with boundary rebound
     window.addEventListener('scroll', () => {
         const currentScrollY = window.scrollY;
         const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
         const deltaY = currentScrollY - lastScrollY;
 
-        // Detect top/bottom boundary hits and apply bounce impulse
         if (currentScrollY <= 0 && deltaY < 0) {
-            scrollVelocity = Math.abs(scrollVelocity) * 0.4 + 6; // Downward bounce at top
+            scrollVelocity = Math.abs(scrollVelocity) * 0.4 + 5;
         } else if (currentScrollY >= maxScroll - 2 && deltaY > 0) {
-            scrollVelocity = -Math.abs(scrollVelocity) * 0.4 - 6; // Upward bounce at bottom
+            scrollVelocity = -Math.abs(scrollVelocity) * 0.4 - 5;
         } else {
-            scrollVelocity += deltaY * 0.35; // Subtler velocity accumulation
+            scrollVelocity += deltaY * 0.3;
         }
 
         lastScrollY = currentScrollY;
@@ -177,7 +176,6 @@ function initHeroCanvas() {
 
     resize();
 
-    // Render node with restrained streak lengths
     function drawNode(x, y, size, isCross, color, streak = 0) {
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.2;
@@ -203,78 +201,86 @@ function initHeroCanvas() {
         ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, width, height);
 
-        // Fast decay so animation settles quickly
-        scrollVelocity *= 0.80;
+        scrollVelocity *= 0.82;
         const absScrollVel = Math.abs(scrollVelocity);
 
-        const hoverRadius = 180;
-        const forceFactor = 0.30;
+        const hoverRadius = 240; // Broadened interaction field for smoother gradient transitions
 
         for (let i = 0; i < grid.length; i++) {
             const p = grid[i];
 
-            // 1. Subtle global scroll wave
-            p.vy -= scrollVelocity * 0.025;
+            // 1. Gentle background scroll displacement
+            p.vy -= scrollVelocity * 0.02;
 
-            // 2. Cursor local proximity force
+            // 2. Cursor repulsion with smooth cubic feathering curve
             const dx = mouse.x - p.x;
             const dy = mouse.y - p.y;
             const dist = Math.hypot(dx, dy);
 
             if (dist < hoverRadius && dist > 0) {
-                const force = (1 - dist / hoverRadius) * forceFactor;
+                const normDist = dist / hoverRadius;
+                // Cubic ease-out curve feathers out seamlessly near hoverRadius
+                const smoothFactor = Math.pow(1 - normDist, 2.5);
+
                 const angle = Math.atan2(dy, dx);
+                const impulse = smoothFactor * 14; // Re-amped displacement under cursor
 
-                p.vx -= Math.cos(angle) * force * 7;
-                p.vy -= Math.sin(angle) * force * 7;
+                p.vx -= Math.cos(angle) * impulse;
+                p.vy -= Math.sin(angle) * impulse;
 
-                // Restrained vertical kick under cursor when scrolling
-                p.vy -= scrollVelocity * force * 0.25;
+                p.vy -= scrollVelocity * smoothFactor * 0.35;
             }
 
-            // Spring return force back to base grid coordinates
+            // Spring physics return to grid anchors
             const springDx = p.baseX - p.x;
             const springDy = p.baseY - p.y;
 
-            p.vx += springDx * 0.08;
-            p.vy += springDy * 0.08;
+            p.vx += springDx * 0.075;
+            p.vy += springDy * 0.075;
 
-            p.vx *= 0.82;
-            p.vy *= 0.82;
+            p.vx *= 0.81;
+            p.vy *= 0.81;
 
             p.x += p.vx;
             p.y += p.vy;
 
-            // Tighter cap on split offsets and streak heights
+            // Compute dynamic displacement activity for smooth alpha blending
             const displacement = Math.hypot(p.x - p.baseX, p.y - p.baseY);
-            const splitOffset = Math.min(displacement * 0.35 + absScrollVel * 0.15, 12);
-            const streak = Math.min(absScrollVel * 0.35, 8); // Max streak capped at 8px
+            const activity = Math.min(displacement / 18, 1.0); // 0 at rest, 1 when active
 
-            if (splitOffset < 0.4 && streak < 0.4) {
+            const splitOffset = Math.min(displacement * 0.48 + absScrollVel * 0.15, 18);
+            const streak = Math.min(absScrollVel * 0.35, 8);
+
+            // Feathered alpha channels eliminate hard outer edge lines
+            if (displacement < 0.3 && streak < 0.3) {
                 drawNode(p.x, p.y, p.size, p.isCross, 'rgba(255, 255, 255, 0.18)', 0);
             } else {
-                // RED Channel Offset
+                const redAlpha = 0.2 + activity * 0.65;
+                const cyanAlpha = 0.2 + activity * 0.65;
+                const coreAlpha = 0.25 + activity * 0.65;
+
+                // RED Channel
                 drawNode(
                     p.x - splitOffset,
                     p.y - splitOffset * 0.5,
-                    p.size + splitOffset * 0.15,
+                    p.size + splitOffset * 0.2,
                     p.isCross,
-                    `rgba(255, 45, 85, ${0.4 + splitOffset * 0.02})`,
+                    `rgba(255, 45, 85, ${redAlpha})`,
                     streak
                 );
 
-                // CYAN Channel Offset
+                // CYAN Channel
                 drawNode(
                     p.x + splitOffset,
                     p.y + splitOffset * 0.5,
-                    p.size + splitOffset * 0.15,
+                    p.size + splitOffset * 0.2,
                     p.isCross,
-                    `rgba(0, 230, 255, ${0.4 + splitOffset * 0.02})`,
+                    `rgba(0, 230, 255, ${cyanAlpha})`,
                     streak
                 );
 
-                // WHITE Center Core
-                drawNode(p.x, p.y, p.size, p.isCross, 'rgba(255, 255, 255, 0.85)', streak * 0.3);
+                // WHITE Core
+                drawNode(p.x, p.y, p.size, p.isCross, `rgba(255, 255, 255, ${coreAlpha})`, streak * 0.3);
             }
         }
 
