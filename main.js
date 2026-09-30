@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC RGB FIELD (V & — SYMBOLS + STATIC SPIN)
+// 4. GENERATIVE KINETIC RGB FIELD (HIGH FPS SPRITE-CACHED + LIGHT RIPPLE)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -108,6 +108,46 @@ function initHeroCanvas() {
     const mouse = { x: -1000, y: -1000, vx: 0, vy: 0, lastX: -1000, lastY: -1000 };
     let lastScrollY = window.scrollY;
     let scrollVelocity = 0;
+
+    // ------------------------------------------------------
+    // HIGH PERFORMANCE SPRITE CACHE (Pre-render vector text)
+    // ------------------------------------------------------
+    const sprites = {};
+
+    function createSymbolSprite(symbol, fontSize, color) {
+        const sCanvas = document.createElement('canvas');
+        const dim = Math.ceil(fontSize * 2.8);
+        sCanvas.width = dim;
+        sCanvas.height = dim;
+        const sCtx = sCanvas.getContext('2d');
+
+        sCtx.font = `700 ${fontSize}px "Space Mono", monospace, sans-serif`;
+        sCtx.textAlign = 'center';
+        sCtx.textBaseline = 'middle';
+        sCtx.fillStyle = color;
+        sCtx.fillText(symbol, dim / 2, dim / 2);
+
+        return { canvas: sCanvas, halfDim: dim / 2 };
+    }
+
+    function initSprites() {
+        const colors = {
+            base: 'rgba(180, 245, 255, 1)',
+            red: 'rgb(255, 30, 90)',
+            cyan: 'rgb(0, 240, 255)',
+            white: 'rgb(255, 255, 255)'
+        };
+
+        ['V', '—'].forEach(sym => {
+            const size = sym === 'V' ? 11 : 13;
+            sprites[sym] = {};
+            Object.keys(colors).forEach(key => {
+                sprites[sym][key] = createSymbolSprite(sym, size, colors[key]);
+            });
+        });
+    }
+
+    initSprites();
 
     function buildGrid() {
         grid = [];
@@ -126,7 +166,6 @@ function initHeroCanvas() {
                     vy: 0,
                     angle: (c * 0.3 + r * 0.3) % (Math.PI * 2),
                     symbol: isV ? "V" : "—",
-                    fontSize: isV ? 11 : 13,
                     spinDir: (c + r) % 2 === 0 ? 1 : -1
                 });
             }
@@ -141,7 +180,7 @@ function initHeroCanvas() {
 
     window.addEventListener('resize', resize);
     
-    // Viewport mouse position tracking
+    // Viewport mouse tracking
     window.addEventListener('mousemove', (e) => {
         const currentX = e.clientX;
         const currentY = e.clientY;
@@ -180,27 +219,20 @@ function initHeroCanvas() {
 
     resize();
 
-    // Text symbol renderer with rotation support
-    function drawSymbolNode(x, y, symbol, fontSize, color, angle = 0, streak = 0) {
+    // Fast GPU-accelerated sprite draw call
+    function drawSprite(x, y, spriteObj, alpha, angle = 0, scaleY = 1) {
+        if (alpha <= 0.01) return;
         ctx.save();
         ctx.translate(x, y);
         if (angle !== 0) ctx.rotate(angle);
-        
-        ctx.fillStyle = color;
-        ctx.font = `700 ${fontSize}px "Space Mono", monospace, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        if (streak > 0) {
-            ctx.scale(1, 1 + streak * 0.15);
-        }
-
-        ctx.fillText(symbol, 0, 0);
+        if (scaleY !== 1) ctx.scale(1, scaleY);
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(spriteObj.canvas, -spriteObj.halfDim, -spriteObj.halfDim);
         ctx.restore();
     }
 
     function animate() {
-        time += 0.02; // Global ambient ticker
+        time += 0.025; // Global timer for expanding light rings
 
         ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, width, height);
@@ -231,7 +263,7 @@ function initHeroCanvas() {
         for (let i = 0; i < grid.length; i++) {
             const p = grid[i];
 
-            // 1. Scanline glitch displacement
+            // 1. Scanline glitch offset
             let glitchX = 0;
             for (let g = 0; g < activeGlitches.length; g++) {
                 if (p.y >= activeGlitches[g].minY && p.y <= activeGlitches[g].maxY) {
@@ -240,19 +272,19 @@ function initHeroCanvas() {
                 }
             }
 
-            // 2. Ambient subtle floating wave when canvas is idle
-            const ambientWaveY = Math.sin(time + p.baseX * 0.015 + p.baseY * 0.015) * 2.5;
-            const targetBaseY = p.baseY + ambientWaveY;
-
-            // 3. Scroll displacement
+            // 2. Scroll impulse
             p.vy -= scrollVelocity * 0.02;
 
-            // 4. Cursor proximity dynamics
+            // 3. Cursor distance & light ripple equation
             const dx = mouse.x - p.x;
             const dy = mouse.y - p.y;
             const dist = Math.hypot(dx, dy);
 
-            let spinRate = 0.003 * p.spinDir; // Subtle background idle spin
+            // Circular breathing light wave radiating outwards from cursor
+            const rippleWave = (Math.sin(dist * 0.025 - time * 3.2) + 1) * 0.5; // Smooth 0.0 to 1.0 range
+            const waveGlow = Math.max(0, (1 - dist / 700)) * rippleWave * 0.35;
+
+            let spinRate = 0.003 * p.spinDir;
 
             if (dist < hoverRadius && dist > 0) {
                 const normDist = dist / hoverRadius;
@@ -261,17 +293,16 @@ function initHeroCanvas() {
                 const angle = Math.atan2(dy, dx);
                 const impulse = smoothFactor * 10;
 
-                // Radial repulsion
+                // Radial displacement
                 p.vx -= Math.cos(angle) * impulse;
                 p.vy -= Math.sin(angle) * impulse;
 
-                // ELEGANT STATIC & ACTIVE CURSOR SPIN:
-                // Spindown accelerates significantly under cursor even when mouse is completely static!
-                const staticSpin = smoothFactor * 0.045 * p.spinDir;
-                const activeSpin = smoothFactor * Math.min(mouseSpeed * 0.08, 2.5);
+                // Continuous static & active vortex rotation
+                const staticSpin = smoothFactor * 0.04 * p.spinDir;
+                const activeSpin = smoothFactor * Math.min(mouseSpeed * 0.08, 2.2);
                 spinRate += staticSpin + activeSpin;
 
-                // Orbital tangent velocity force
+                // Orbital velocity force
                 const tangentAngle = angle + Math.PI / 2;
                 const vortexForce = smoothFactor * (0.8 + Math.min(mouseSpeed * 0.05, 2.0));
                 p.vx += Math.cos(tangentAngle) * vortexForce;
@@ -280,12 +311,11 @@ function initHeroCanvas() {
                 p.vy -= scrollVelocity * smoothFactor * 0.3;
             }
 
-            // Update individual node rotation angle
             p.angle += spinRate;
 
-            // Spring return force back to base anchor position
+            // Spring return force back to base anchor positions
             const springDx = p.baseX - p.x;
-            const springDy = targetBaseY - p.y;
+            const springDy = p.baseY - p.y;
 
             p.vx += springDx * 0.075;
             p.vy += springDy * 0.075;
@@ -304,48 +334,48 @@ function initHeroCanvas() {
 
             const splitOffset = Math.min(displacement * 0.4 + absScrollVel * 0.08, 10);
             const streak = Math.min(absScrollVel * 0.2, 5);
+            const streakScaleY = 1 + streak * 0.15;
 
-            // Dynamic saturated color rendering
+            const symSprites = sprites[p.symbol];
+
+            // Render sprites efficiently
             if (displacement < 0.3 && streak < 0.3 && Math.abs(glitchX) < 0.5) {
-                // Boosted idle symbol brightness
-                drawSymbolNode(renderX, renderY, p.symbol, p.fontSize, 'rgba(180, 245, 255, 0.42)', p.angle, 0);
+                const idleAlpha = Math.min(0.38 + waveGlow, 0.85);
+                drawSprite(renderX, renderY, symSprites.base, idleAlpha, p.angle, 1);
             } else {
                 const isGlitched = Math.abs(glitchX) > 0.5;
-                const redAlpha = isGlitched ? 0.85 : (0.35 + activity * 0.55);
-                const cyanAlpha = isGlitched ? 0.85 : (0.35 + activity * 0.55);
-                const coreAlpha = 0.45 + activity * 0.55;
+                const redAlpha = isGlitched ? 0.85 : Math.min(0.35 + activity * 0.55 + waveGlow, 0.95);
+                const cyanAlpha = isGlitched ? 0.85 : Math.min(0.35 + activity * 0.55 + waveGlow, 0.95);
+                const coreAlpha = Math.min(0.45 + activity * 0.55 + waveGlow, 0.95);
 
                 // RED Channel
-                drawSymbolNode(
+                drawSprite(
                     renderX - splitOffset,
                     renderY - splitOffset * 0.4,
-                    p.symbol,
-                    p.fontSize,
-                    `rgba(255, 30, 90, ${redAlpha})`,
+                    symSprites.red,
+                    redAlpha,
                     p.angle,
-                    streak
+                    streakScaleY
                 );
 
                 // CYAN Channel
-                drawSymbolNode(
+                drawSprite(
                     renderX + splitOffset,
                     renderY + splitOffset * 0.4,
-                    p.symbol,
-                    p.fontSize,
-                    `rgba(0, 240, 255, ${cyanAlpha})`,
+                    symSprites.cyan,
+                    cyanAlpha,
                     p.angle,
-                    streak
+                    streakScaleY
                 );
 
                 // WHITE Core
-                drawSymbolNode(
+                drawSprite(
                     renderX,
                     renderY,
-                    p.symbol,
-                    p.fontSize,
-                    `rgba(255, 255, 255, ${coreAlpha})`,
+                    symSprites.white,
+                    coreAlpha,
                     p.angle,
-                    streak * 0.2
+                    1 + streak * 0.05
                 );
             }
         }
