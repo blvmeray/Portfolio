@@ -96,6 +96,9 @@ if (modal) {
 // ==========================================================
 // 4. INTERACTIVE LCD SUBPIXEL CANVAS SIMULATION
 // ==========================================================
+// ==========================================================
+// 4. INTERACTIVE MACRO LCD SUBPIXEL CANVAS SIMULATION
+// ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
     if (!canvas) return;
@@ -104,34 +107,52 @@ function initHeroCanvas() {
     let width, height;
     let lcdPattern = null;
 
-    // Smooth cursor interpolation for lag/ghosting effect
+    // Smooth cursor interpolation for backlight lag
     const mouse = { x: -500, y: -500 };
     const targetMouse = { x: -500, y: -500 };
 
-    // Create high-density RGB subpixel texture pattern
+    // Create Macro Subpixel Texture Pattern (Zoomed In)
     function buildLCDTile() {
         const pCanvas = document.createElement('canvas');
         const pCtx = pCanvas.getContext('2d');
-        const size = 6; // 6px x 6px subpixel cluster
         
-        pCanvas.width = size;
-        pCanvas.height = size;
+        // MACRO DIMENSIONS
+        const tileW = 22; // Width of 1 pixel cluster
+        const tileH = 20; // Height of 1 pixel cluster
+        
+        pCanvas.width = tileW;
+        pCanvas.height = tileH;
 
-        // Dark substrate background
-        pCtx.fillStyle = '#060608';
-        pCtx.fillRect(0, 0, size, size);
+        // Pure black substrate (Black Mask/Matrix)
+        pCtx.fillStyle = '#020204';
+        pCtx.fillRect(0, 0, tileW, tileH);
 
-        // Subpixel Red
-        pCtx.fillStyle = 'rgba(230, 40, 40, 0.45)';
-        pCtx.fillRect(0, 0, 1.8, size - 1);
+        // Subpixel Bar Dimensions
+        const subW = 5;      // Width of each R, G, B bar
+        const subH = 14;     // Height of each bar
+        const subY = 3;      // Top padding (leaves black gaps between rows)
+        const radius = 1.5;  // Slightly rounded corners like real subpixels
 
-        // Subpixel Green
-        pCtx.fillStyle = 'rgba(40, 230, 40, 0.45)';
-        pCtx.fillRect(2, 0, 1.8, size - 1);
+        // Helper function for rounded subpixel bars
+        function drawSubpixel(x, color) {
+            pCtx.fillStyle = color;
+            pCtx.beginPath();
+            if (pCtx.roundRect) {
+                pCtx.roundRect(x, subY, subW, subH, radius);
+            } else {
+                pCtx.rect(x, subY, subW, subH);
+            }
+            pCtx.fill();
+        }
 
-        // Subpixel Blue
-        pCtx.fillStyle = 'rgba(40, 100, 255, 0.45)';
-        pCtx.fillRect(4, 0, 1.8, size - 1);
+        // 1. Red Subpixel (left = 2px, 2px gap to green)
+        drawSubpixel(2, 'rgba(240, 30, 30, 0.40)');
+
+        // 2. Green Subpixel (left = 8.5px, 2px gap to blue)
+        drawSubpixel(8.5, 'rgba(30, 240, 30, 0.40)');
+
+        // 3. Blue Subpixel (left = 15px, 2px gap to next pixel)
+        drawSubpixel(15, 'rgba(30, 110, 255, 0.40)');
 
         lcdPattern = ctx.createPattern(pCanvas, 'repeat');
     }
@@ -152,35 +173,34 @@ function initHeroCanvas() {
     resize();
 
     function animate() {
-        // Base dark screen background
-        ctx.fillStyle = '#0a0a0c';
+        // Deep dark background
+        ctx.fillStyle = '#060608';
         ctx.fillRect(0, 0, width, height);
 
-        // Draw dense LCD RGB subpixel layer
+        // Draw Macro Subpixel Grid
         if (lcdPattern) {
             ctx.fillStyle = lcdPattern;
             ctx.fillRect(0, 0, width, height);
         }
 
-        // Smoothly interpolate mouse position (gives the 'phosphor persistence' ghosting effect)
+        // Smooth cursor movement interpolation
         mouse.x += (targetMouse.x - mouse.x) * 0.08;
         mouse.y += (targetMouse.y - mouse.y) * 0.08;
 
-        // Render Cursor Backlight Glow
+        // Render Backlight
         if (targetMouse.x > 0 && targetMouse.y > 0) {
             ctx.save();
-            // Screen composite mode brightens the RGB subpixels beneath it
             ctx.globalCompositeOperation = 'screen';
 
-            // 1. Soft Blurry Outer Light Trail (follows smoothly with lag)
-            const trailRadius = 220;
+            // Soft Light Trail
+            const trailRadius = 260;
             const trailGlow = ctx.createRadialGradient(
                 mouse.x, mouse.y, 0,
                 mouse.x, mouse.y, trailRadius
             );
-            trailGlow.addColorStop(0, 'rgba(0, 240, 255, 0.65)');   // Bright Cyan
-            trailGlow.addColorStop(0.3, 'rgba(0, 140, 255, 0.35)');  // Soft Blue
-            trailGlow.addColorStop(0.7, 'rgba(0, 60, 180, 0.12)');  // Subtle Edge
+            trailGlow.addColorStop(0, 'rgba(0, 240, 255, 0.7)');
+            trailGlow.addColorStop(0.35, 'rgba(0, 120, 255, 0.35)');
+            trailGlow.addColorStop(0.7, 'rgba(0, 40, 160, 0.1)');
             trailGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
             ctx.fillStyle = trailGlow;
@@ -188,14 +208,14 @@ function initHeroCanvas() {
             ctx.arc(mouse.x, mouse.y, trailRadius, 0, Math.PI * 2);
             ctx.fill();
 
-            // 2. Focused Bright Core under cursor tip
-            const coreRadius = 60;
+            // Focused White Backlight Core
+            const coreRadius = 70;
             const coreGlow = ctx.createRadialGradient(
                 targetMouse.x, targetMouse.y, 0,
                 targetMouse.x, targetMouse.y, coreRadius
             );
-            coreGlow.addColorStop(0, 'rgba(255, 255, 255, 0.95)'); // Pure White backlight center
-            coreGlow.addColorStop(0.4, 'rgba(0, 240, 255, 0.6)');  // Cyan transition
+            coreGlow.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+            coreGlow.addColorStop(0.4, 'rgba(0, 240, 255, 0.6)');
             coreGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
             ctx.fillStyle = coreGlow;
@@ -211,9 +231,3 @@ function initHeroCanvas() {
 
     animate();
 }
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', () => {
-    renderGallery();
-    initHeroCanvas();
-});
