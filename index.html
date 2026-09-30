@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Art & Motion Portfolio</title>
+    
+    <!-- Google Fonts: Inter for clean text, JetBrains Mono for tech specs -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- External CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ========================================== -->
+    <!-- 1. NAVIGATION BAR                          -->
+    <!-- ========================================== -->
+    <header class="navbar">
+        <div class="nav-container">
+            <a href="#" class="nav-logo">// PORTFOLIO</a>
+            <nav class="nav-links">
+                <a href="#work">Work</a>
+                <a href="#about">About</a>
+                <a href="#contact">Contact</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- 2. HERO SECTION WITH GENERATIVE BACKGROUND -->
+    <!-- ========================================== -->
+    <section class="hero">
+        <canvas id="heroCanvas"></canvas> <!-- Generative background render -->
+        <div class="hero-content">
+            <p class="tagline">// DIGITAL ARTIST & GENERATIVE DESIGNER</p>
+            <h1 class="hero-title">Algorithmic Motion & Glitch Aesthetics</h1>
+            <p class="hero-subtitle">Exploring kinetic structures, RGB channel splitting, and generative visual systems.</p>
+            <a href="#work" class="btn-primary">Explore Works ↓</a>
+        </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- 3. GALLERY / WORK SECTION                  -->
+    <!-- ========================================== -->
+    <section id="work" class="section-container">
+        <div class="section-header">
+            <h2>Featured Works</h2>
+            <p class="section-desc">Interactive & kinetic visual experiments</p>
+        </div>
+
+        <!-- Gallery Grid (Populated dynamically via app.js) -->
+        <div id="galleryGrid" class="gallery-grid"></div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- 4. ABOUT SECTION                           -->
+    <!-- ========================================== -->
+    <section id="about" class="section-container border-top">
+        <div class="about-grid">
+            <div class="about-text">
+                <h2>About the Practice</h2>
+                <p>Focusing on sophisticated digital animations, custom shader mechanics, and generative visual systems built with Processing, Natron, and custom web tools.</p>
+                <div class="specs-box">
+                    <p><strong>Primary Mediums:</strong> Generative Art, Glitch Motion, Particle Systems</p>
+                    <p><strong>Tools & Workflows:</strong> Processing, Natron, Custom Shaders, HTML5 Canvas</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- 5. CONTACT / FOOTER SECTION                -->
+    <!-- ========================================== -->
+    <footer id="contact" class="footer">
+        <div class="footer-content">
+            <h3>Get in Touch</h3>
+            <p>Open for collaborations, commissions, and project inquiries.</p>
+            <a href="mailto:your-email@domain.com" class="btn-secondary">Send Message</a>
+            <p class="copyright">© <span id="year"></span> — All Rights Reserved</p>
+        </div>
+    </footer>
+
+    <!-- ========================================== -->
+    <!-- 6. ARTWORK MODAL (POPUP FOR DETAILED VIEW) -->
+    <!-- ========================================== -->
+    <div id="artworkModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="closeModal" class="modal-close">&times;</button>
+            <div id="modalBody" class="modal-body">
+                <!-- Injected via JavaScript when artwork is clicked -->
+            </div>
+        </div>
+    </div>
+
+    <!-- External JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,155 @@
+// ==========================================================
+// 1. ARTWORK DATA CATALOG
+// To add new artwork in the future, just add a new item here!
+// ==========================================================
+const artworks = [
+    {
+        id: "raven-01",
+        title: "Raven Series // Visual Distortion 01",
+        tags: "Natron • Processing • Chromatic Aberration",
+        description: "Kinetic motion study exploring RGB channel splitting and dithered particle grids.",
+        mediaType: "placeholder", // Change to "image" or "video" when you add asset files
+        src: ""
+    },
+    {
+        id: "arthur-loop",
+        title: "Arthur Loop // Algorithmic Bloom",
+        tags: "Generative • Radial Geometry • 60 FPS",
+        description: "Symmetrical shredding transition moving into organic radial bloom patterns.",
+        mediaType: "placeholder",
+        src: ""
+    },
+    {
+        id: "spectral-grid",
+        title: "Quantized Pulse",
+        tags: "Processing • Custom Shaders",
+        description: "High-contrast algorithmic grid manipulation with reactive particle dynamics.",
+        mediaType: "placeholder",
+        src: ""
+    }
+];
+
+// Set dynamic current year in footer
+document.getElementById('year').textContent = new Date().getFullYear();
+
+// ==========================================================
+// 2. RENDER GALLERY GRID
+// ==========================================================
+const galleryGrid = document.getElementById('galleryGrid');
+
+function renderGallery() {
+    galleryGrid.innerHTML = '';
+    
+    artworks.forEach(art => {
+        const card = document.createElement('div');
+        card.className = 'art-card';
+        
+        // Placeholder artwork preview box
+        card.innerHTML = `
+            <div class="art-card-preview">
+                <span style="color: var(--text-muted); font-family: var(--font-mono); font-size: 0.85rem;">
+                    [ ${art.id} ]
+                </span>
+            </div>
+            <div class="art-card-info">
+                <h3 class="art-card-title">${art.title}</h3>
+                <p class="art-card-tags">${art.tags}</p>
+            </div>
+        `;
+        
+        card.addEventListener('click', () => openModal(art));
+        galleryGrid.appendChild(card);
+    });
+}
+
+// ==========================================================
+// 3. MODAL / LIGHTBOX POPUP LOGIC
+// ==========================================================
+const modal = document.getElementById('artworkModal');
+const modalBody = document.getElementById('modalBody');
+const closeModal = document.getElementById('closeModal');
+
+function openModal(art) {
+    modalBody.innerHTML = `
+        <h2 style="margin-bottom: 0.5rem; font-size: 1.8rem;">${art.title}</h2>
+        <p style="font-family: var(--font-mono); color: var(--accent); margin-bottom: 1.5rem;">${art.tags}</p>
+        <div style="width: 100%; height: 300px; background: #000; display: flex; align-items: center; justify-content: center; border-radius: 6px; margin-bottom: 1.5rem;">
+            <span style="font-family: var(--font-mono); color: var(--text-muted);">Preview Media Area (${art.id})</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 1rem;">${art.description}</p>
+    `;
+    modal.classList.remove('hidden');
+}
+
+closeModal.addEventListener('click', () => modal.classList.add('hidden'));
+modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.classList.add('hidden');
+});
+
+// ==========================================================
+// 4. HERO GENERATIVE CANVAS (Background Visual)
+// ==========================================================
+function initHeroCanvas() {
+    const canvas = document.getElementById('heroCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let width = canvas.width = window.innerWidth;
+    let height = canvas.height = window.innerHeight;
+    
+    window.addEventListener('resize', () => {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+    });
+
+    const particles = Array.from({ length: 45 }, () => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5,
+        radius: Math.random() * 2 + 1
+    }));
+
+    function animate() {
+        ctx.clearRect(0, 0, width, height);
+        
+        particles.forEach((p, i) => {
+            p.x += p.vx;
+            p.y += p.vy;
+            
+            if (p.x < 0 || p.x > width) p.vx *= -1;
+            if (p.y < 0 || p.y > height) p.vy *= -1;
+            
+            ctx.fillStyle = '#00f0ff';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Connect nearby particles with subtle lines
+            for (let j = i + 1; j < particles.length; j++) {
+                const p2 = particles[j];
+                const dx = p.x - p2.x;
+                const dy = p.y - p2.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < 120) {
+                    ctx.strokeStyle = `rgba(0, 240, 255, ${0.15 * (1 - dist / 120)})`;
+                    ctx.lineWidth = 0.8;
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                }
+            }
+        });
+        
+        requestAnimationFrame(animate);
+    }
+    
+    animate();
+}
+
+// Initialize on page load
+window.addEventListener('DOMContentLoaded', () => {
+    renderGallery();
+    initHeroCanvas();
+});
