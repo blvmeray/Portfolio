@@ -83,152 +83,117 @@ modal.addEventListener('click', (e) => {
     if (e.target === modal) modal.classList.add('hidden');
 });
 
-// **********************************************************
-// **********************************************************
-// 4. NEW HERO INTERACTIVE LCD CANVAS Visual System
-// **********************************************************
-// **********************************************************
-
+// ==========================================================
+// 4. HERO INTERACTIVE LCD CANVAS (High Performance)
+// ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
-    const ctx = canvas.getContext('2d', { alpha: true });
-    
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
     let width, height;
-    let dpi = window.devicePixelRatio || 1;
+    let pattern;
 
-    // --- LCD Simulation Parameters ---
-    const pixelSize = 6;              // Size of an entire RGB cluster
-    const interactionRadius = 180;    // How far the mouse effects pixels
-    const mouseForce = 1.0;            // Brightness boost (1.0 = full light)
-    const blurAmount = 14;            // Max blur of the 'hot zone'
-    
-    // Interaction State
-    const mouse = { x: -200, y: -200 };
-    let gridCols, gridRows;
-    let gridData = [];
-    
-    // Re-calculates grid structure on resize
-    function setupGrid() {
-        width = canvas.width = window.innerWidth * dpi;
-        height = canvas.height = window.innerHeight * dpi;
-        // Scale back the context for DPI matching
-        ctx.scale(dpi, dpi);
-        
-        const cssWidth = window.innerWidth;
-        const cssHeight = window.innerHeight;
+    // Mouse positions (targetMouse tracks cursor, mouse lags smoothly for ghosting)
+    const mouse = { x: -500, y: -500 };
+    const targetMouse = { x: -500, y: -500 };
 
-        gridCols = Math.ceil(cssWidth / pixelSize);
-        gridRows = Math.ceil(cssHeight / pixelSize);
-        gridData = [];
+    // 1. Generate the LCD Subpixel RGB Tile
+    function createLCDPattern() {
+        const patternCanvas = document.createElement('canvas');
+        patternCanvas.width = 9;  // 3px Red, 3px Green, 3px Blue
+        patternCanvas.height = 9;
+        const pCtx = patternCanvas.getContext('2d');
 
-        for (let r = 0; r < gridRows; r++) {
-            for (let c = 0; c < gridCols; c++) {
-                gridData.push({
-                    x: c * pixelSize,
-                    y: r * pixelSize,
-                    // Brightness (0.0 to 1.0)
-                    intensity: 0,
-                    // Suggested Glitch state
-                    targetIntensity: 0
-                });
-            }
-        }
+        // Dark background grid grid gap
+        pCtx.fillStyle = '#0a0a0c';
+        pCtx.fillRect(0, 0, 9, 9);
+
+        // Subpixel Red
+        pCtx.fillStyle = 'rgba(255, 50, 50, 0.35)';
+        pCtx.fillRect(0, 0, 2.5, 8);
+
+        // Subpixel Green
+        pCtx.fillStyle = 'rgba(50, 255, 50, 0.35)';
+        pCtx.fillRect(3, 0, 2.5, 8);
+
+        // Subpixel Blue
+        pCtx.fillStyle = 'rgba(50, 100, 255, 0.35)';
+        pCtx.fillRect(6, 0, 2.5, 8);
+
+        pattern = ctx.createPattern(patternCanvas, 'repeat');
     }
 
-    window.addEventListener('resize', setupGrid);
+    // 2. Responsive Canvas Sizing
+    function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+        createLCDPattern();
+    }
+
+    window.addEventListener('resize', resize);
     window.addEventListener('mousemove', (e) => {
-        // Correct mouse coordinate for fixed-relative positioning of canvas
-        mouse.x = e.clientX;
-        mouse.y = e.clientY;
+        const rect = canvas.getBoundingClientRect();
+        targetMouse.x = e.clientX - rect.left;
+        targetMouse.y = e.clientY - rect.top;
     });
 
-    setupGrid(); // Initial build
+    resize();
 
-    // --- Animate Loop ---
+    // 3. 60 FPS Render Loop
     function animate() {
         ctx.clearRect(0, 0, width, height);
 
-        // Define base off-screen canvas grid for performance (drawing macroscopic pattern only once)
-        const staticGridCanvas = document.createElement('canvas');
-        staticGridCanvas.width = width; staticGridCanvas.height = height;
-        const staticCtx = staticGridCanvas.getContext('2d');
+        // Interpolate mouse position (creates phosphor trailing / blur lag)
+        mouse.x += (targetMouse.x - mouse.x) * 0.12;
+        mouse.y += (targetMouse.y - mouse.y) * 0.12;
 
-        // Render the "dark/inactive" dense RGB pattern (RGB stripes)
-        for (let r = 0; r < gridRows; r++) {
-            for (let c = 0; c < gridCols; c++) {
-                const px = c * pixelSize; const py = r * pixelSize;
-                
-                // Draw Microscopic RGB stripes [R,G,B][R,G,B]
-                // 1. Red (Left third)
-                staticCtx.fillStyle = 'rgba(100, 20, 20, 0.4)'; // Dim Red
-                staticCtx.fillRect(px, py, pixelSize/3, pixelSize);
-                // 2. Green (Center third)
-                staticCtx.fillStyle = 'rgba(20, 100, 20, 0.4)'; // Dim Green
-                staticCtx.fillRect(px + (pixelSize/3), py, pixelSize/3, pixelSize);
-                // 3. Blue (Right third)
-                staticCtx.fillStyle = 'rgba(20, 20, 100, 0.4)'; // Dim Blue
-                staticCtx.fillRect(px + (pixelSize*2/3), py, pixelSize/3, pixelSize);
-                
-                // Draw thin separation line
-                staticCtx.strokeStyle = 'rgba(0,0,0,0.3)'; staticCtx.lineWidth = 0.5;
-                staticCtx.strokeRect(px, py, pixelSize, pixelSize);
-            }
+        // Draw static LCD RGB Grid across background
+        if (pattern) {
+            ctx.fillStyle = pattern;
+            ctx.fillRect(0, 0, width, height);
         }
 
-        // Draw the base static grid
-        ctx.drawImage(staticGridCanvas, 0, 0);
+        // Draw Backlight Glow under cursor
+        if (targetMouse.x > 0 && targetMouse.y > 0) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen'; // Blend mode that illuminates RGB subpixels
 
-        // --- Now calculate and render the brightened 'hot zone' and blur ---
-        // (This part must run every frame)
+            // Outer Blurry LCD Backlight Glow
+            const glowRadius = 180;
+            const gradient = ctx.createRadialGradient(
+                mouse.x, mouse.y, 0,
+                mouse.x, mouse.y, glowRadius
+            );
+            gradient.addColorStop(0, 'rgba(0, 240, 255, 0.85)');   // Bright Cyan Center
+            gradient.addColorStop(0.3, 'rgba(0, 180, 255, 0.4)');  // Blurry Transition
+            gradient.addColorStop(0.7, 'rgba(0, 80, 255, 0.1)');   // Subtle Fade
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
-        gridData.forEach(cell => {
-            const dx = cell.x - mouse.x;
-            const dy = cell.y - mouse.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(mouse.x, mouse.y, glowRadius, 0, Math.PI * 2);
+            ctx.fill();
 
-            // Calculate target brightness based on mouse distance
-            if (dist < interactionRadius) {
-                // Closer pixels light up fully (mouseForce), fading smoothly out to 0 at radius edge
-                cell.targetIntensity = mouseForce * (1 - dist / interactionRadius);
-            } else {
-                cell.targetIntensity = 0;
-            }
+            // Direct Hotspot directly under cursor tip
+            const coreGradient = ctx.createRadialGradient(
+                targetMouse.x, targetMouse.y, 0,
+                targetMouse.x, targetMouse.y, 40
+            );
+            coreGradient.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+            coreGradient.addColorStop(0.5, 'rgba(0, 240, 255, 0.5)');
+            coreGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
-            // Smoothly ease the intensity (adds ghosting persistence)
-            cell.intensity += (cell.targetIntensity - cell.intensity) * 0.15; // Ease factor
-        });
+            ctx.fillStyle = coreGradient;
+            ctx.beginPath();
+            ctx.arc(targetMouse.x, targetMouse.y, 40, 0, Math.PI * 2);
+            ctx.fill();
 
-        // Loop again and draw only the affected bright cells with blurring
-        // To achieve blurring, we apply the blur *then* draw the bright overlay
-        
-        ctx.save(); // Save base state
-        
-        gridData.forEach(cell => {
-            if(cell.intensity > 0.05) { // Only process brightly lit cells
-                const px = cell.x; const py = cell.y;
-                const brightness = cell.intensity;
-                
-                // Calculate dynamic blur amount based on intensity (brightest = least blurry, edges = most blurry)
-                const dynamicBlur = blurAmount * (1 - brightness);
-                ctx.filter = `blur(${dynamicBlur}px) contrast(1.2)`;
+            ctx.restore();
+        }
 
-                // Draw bright version of the cell (Cyan 'glow' over RGB)
-                // Use cell.intensity to modulate opacity of the accent glow
-                ctx.fillStyle = `rgba(0, 240, 255, ${brightness * 0.8})`; // (Cyan Accent, transparent)
-                ctx.fillRect(px, py, pixelSize, pixelSize);
-            }
-        });
-        
-        ctx.restore(); // Restore base state (turn off blurring for navigation etc.)
-        
         requestAnimationFrame(animate);
     }
-    
+
     animate();
 }
-
-// Initialize everything on page load
-window.addEventListener('DOMContentLoaded', () => {
-    renderGallery();
-    initHeroCanvas();
-});
