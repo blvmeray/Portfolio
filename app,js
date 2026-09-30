@@ -1,14 +1,13 @@
 // ==========================================================
-// 1. ARTWORK DATA CATALOG
-// To add new artwork in the future, just add a new item here!
+// 1. ARTWORK DATA CATALOG (KEEP AS IS)
 // ==========================================================
 const artworks = [
     {
-        id: "Smoking Anima",
-        title: "Smoking Anima// Visual Distortion 01",
-        tags: "Natron • Processing •",
-        description: "Vices continue even when a lighter wont spark.",
-        mediaType: "gif", // Change to "image" or "video" when you add asset files
+        id: "raven-01",
+        title: "Raven Series // Visual Distortion 01",
+        tags: "Natron • Processing • Chromatic Aberration",
+        description: "Kinetic motion study exploring RGB channel splitting and dithered particle grids.",
+        mediaType: "placeholder",
         src: ""
     },
     {
@@ -33,7 +32,7 @@ const artworks = [
 document.getElementById('year').textContent = new Date().getFullYear();
 
 // ==========================================================
-// 2. RENDER GALLERY GRID
+// 2. RENDER GALLERY GRID (KEEP AS IS)
 // ==========================================================
 const galleryGrid = document.getElementById('galleryGrid');
 
@@ -43,8 +42,6 @@ function renderGallery() {
     artworks.forEach(art => {
         const card = document.createElement('div');
         card.className = 'art-card';
-        
-        // Placeholder artwork preview box
         card.innerHTML = `
             <div class="art-card-preview">
                 <span style="color: var(--text-muted); font-family: var(--font-mono); font-size: 0.85rem;">
@@ -63,7 +60,7 @@ function renderGallery() {
 }
 
 // ==========================================================
-// 3. MODAL / LIGHTBOX POPUP LOGIC
+// 3. MODAL / LIGHTBOX POPUP LOGIC (KEEP AS IS)
 // ==========================================================
 const modal = document.getElementById('artworkModal');
 const modalBody = document.getElementById('modalBody');
@@ -86,61 +83,143 @@ modal.addEventListener('click', (e) => {
     if (e.target === modal) modal.classList.add('hidden');
 });
 
-// ==========================================================
-// 4. HERO GENERATIVE CANVAS (Background Visual)
-// ==========================================================
+// **********************************************************
+// **********************************************************
+// 4. NEW HERO INTERACTIVE LCD CANVAS Visual System
+// **********************************************************
+// **********************************************************
+
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
     
-    let width = canvas.width = window.innerWidth;
-    let height = canvas.height = window.innerHeight;
+    let width, height;
+    let dpi = window.devicePixelRatio || 1;
+
+    // --- LCD Simulation Parameters ---
+    const pixelSize = 6;              // Size of an entire RGB cluster
+    const interactionRadius = 180;    // How far the mouse effects pixels
+    const mouseForce = 1.0;            // Brightness boost (1.0 = full light)
+    const blurAmount = 14;            // Max blur of the 'hot zone'
     
-    window.addEventListener('resize', () => {
-        width = canvas.width = window.innerWidth;
-        height = canvas.height = window.innerHeight;
+    // Interaction State
+    const mouse = { x: -200, y: -200 };
+    let gridCols, gridRows;
+    let gridData = [];
+    
+    // Re-calculates grid structure on resize
+    function setupGrid() {
+        width = canvas.width = window.innerWidth * dpi;
+        height = canvas.height = window.innerHeight * dpi;
+        // Scale back the context for DPI matching
+        ctx.scale(dpi, dpi);
+        
+        const cssWidth = window.innerWidth;
+        const cssHeight = window.innerHeight;
+
+        gridCols = Math.ceil(cssWidth / pixelSize);
+        gridRows = Math.ceil(cssHeight / pixelSize);
+        gridData = [];
+
+        for (let r = 0; r < gridRows; r++) {
+            for (let c = 0; c < gridCols; c++) {
+                gridData.push({
+                    x: c * pixelSize,
+                    y: r * pixelSize,
+                    // Brightness (0.0 to 1.0)
+                    intensity: 0,
+                    // Suggested Glitch state
+                    targetIntensity: 0
+                });
+            }
+        }
+    }
+
+    window.addEventListener('resize', setupGrid);
+    window.addEventListener('mousemove', (e) => {
+        // Correct mouse coordinate for fixed-relative positioning of canvas
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
     });
 
-    const particles = Array.from({ length: 45 }, () => ({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: (Math.random() - 0.5) * 0.5,
-        radius: Math.random() * 2 + 1
-    }));
+    setupGrid(); // Initial build
 
+    // --- Animate Loop ---
     function animate() {
         ctx.clearRect(0, 0, width, height);
-        
-        particles.forEach((p, i) => {
-            p.x += p.vx;
-            p.y += p.vy;
-            
-            if (p.x < 0 || p.x > width) p.vx *= -1;
-            if (p.y < 0 || p.y > height) p.vy *= -1;
-            
-            ctx.fillStyle = '#00f0ff';
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-            ctx.fill();
 
-            // Connect nearby particles with subtle lines
-            for (let j = i + 1; j < particles.length; j++) {
-                const p2 = particles[j];
-                const dx = p.x - p2.x;
-                const dy = p.y - p2.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
+        // Define base off-screen canvas grid for performance (drawing macroscopic pattern only once)
+        const staticGridCanvas = document.createElement('canvas');
+        staticGridCanvas.width = width; staticGridCanvas.height = height;
+        const staticCtx = staticGridCanvas.getContext('2d');
+
+        // Render the "dark/inactive" dense RGB pattern (RGB stripes)
+        for (let r = 0; r < gridRows; r++) {
+            for (let c = 0; c < gridCols; c++) {
+                const px = c * pixelSize; const py = r * pixelSize;
                 
-                if (dist < 120) {
-                    ctx.strokeStyle = `rgba(0, 240, 255, ${0.15 * (1 - dist / 120)})`;
-                    ctx.lineWidth = 0.8;
-                    ctx.beginPath();
-                    ctx.moveTo(p.x, p.y);
-                    ctx.lineTo(p2.x, p2.y);
-                    ctx.stroke();
-                }
+                // Draw Microscopic RGB stripes [R,G,B][R,G,B]
+                // 1. Red (Left third)
+                staticCtx.fillStyle = 'rgba(100, 20, 20, 0.4)'; // Dim Red
+                staticCtx.fillRect(px, py, pixelSize/3, pixelSize);
+                // 2. Green (Center third)
+                staticCtx.fillStyle = 'rgba(20, 100, 20, 0.4)'; // Dim Green
+                staticCtx.fillRect(px + (pixelSize/3), py, pixelSize/3, pixelSize);
+                // 3. Blue (Right third)
+                staticCtx.fillStyle = 'rgba(20, 20, 100, 0.4)'; // Dim Blue
+                staticCtx.fillRect(px + (pixelSize*2/3), py, pixelSize/3, pixelSize);
+                
+                // Draw thin separation line
+                staticCtx.strokeStyle = 'rgba(0,0,0,0.3)'; staticCtx.lineWidth = 0.5;
+                staticCtx.strokeRect(px, py, pixelSize, pixelSize);
+            }
+        }
+
+        // Draw the base static grid
+        ctx.drawImage(staticGridCanvas, 0, 0);
+
+        // --- Now calculate and render the brightened 'hot zone' and blur ---
+        // (This part must run every frame)
+
+        gridData.forEach(cell => {
+            const dx = cell.x - mouse.x;
+            const dy = cell.y - mouse.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // Calculate target brightness based on mouse distance
+            if (dist < interactionRadius) {
+                // Closer pixels light up fully (mouseForce), fading smoothly out to 0 at radius edge
+                cell.targetIntensity = mouseForce * (1 - dist / interactionRadius);
+            } else {
+                cell.targetIntensity = 0;
+            }
+
+            // Smoothly ease the intensity (adds ghosting persistence)
+            cell.intensity += (cell.targetIntensity - cell.intensity) * 0.15; // Ease factor
+        });
+
+        // Loop again and draw only the affected bright cells with blurring
+        // To achieve blurring, we apply the blur *then* draw the bright overlay
+        
+        ctx.save(); // Save base state
+        
+        gridData.forEach(cell => {
+            if(cell.intensity > 0.05) { // Only process brightly lit cells
+                const px = cell.x; const py = cell.y;
+                const brightness = cell.intensity;
+                
+                // Calculate dynamic blur amount based on intensity (brightest = least blurry, edges = most blurry)
+                const dynamicBlur = blurAmount * (1 - brightness);
+                ctx.filter = `blur(${dynamicBlur}px) contrast(1.2)`;
+
+                // Draw bright version of the cell (Cyan 'glow' over RGB)
+                // Use cell.intensity to modulate opacity of the accent glow
+                ctx.fillStyle = `rgba(0, 240, 255, ${brightness * 0.8})`; // (Cyan Accent, transparent)
+                ctx.fillRect(px, py, pixelSize, pixelSize);
             }
         });
+        
+        ctx.restore(); // Restore base state (turn off blurring for navigation etc.)
         
         requestAnimationFrame(animate);
     }
@@ -148,7 +227,7 @@ function initHeroCanvas() {
     animate();
 }
 
-// Initialize on page load
+// Initialize everything on page load
 window.addEventListener('DOMContentLoaded', () => {
     renderGallery();
     initHeroCanvas();
