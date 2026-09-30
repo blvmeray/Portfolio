@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. FULL-PAGE GENERATIVE KINETIC RGB FIELD (HIGH-IMPACT SCROLL)
+// 4. FULL-PAGE GENERATIVE KINETIC RGB FIELD (BALANCED + BOUNCE)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -152,12 +152,21 @@ function initHeroCanvas() {
         mouse.lastY = currentY;
     });
 
-    // High-sensitivity scroll velocity listener
+    // Scroll listener with boundary rebound detection
     window.addEventListener('scroll', () => {
         const currentScrollY = window.scrollY;
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
         const deltaY = currentScrollY - lastScrollY;
-        // Amplified scroll impulse multiplier
-        scrollVelocity += deltaY * 2.8;
+
+        // Detect top/bottom boundary hits and apply bounce impulse
+        if (currentScrollY <= 0 && deltaY < 0) {
+            scrollVelocity = Math.abs(scrollVelocity) * 0.4 + 6; // Downward bounce at top
+        } else if (currentScrollY >= maxScroll - 2 && deltaY > 0) {
+            scrollVelocity = -Math.abs(scrollVelocity) * 0.4 - 6; // Upward bounce at bottom
+        } else {
+            scrollVelocity += deltaY * 0.35; // Subtler velocity accumulation
+        }
+
         lastScrollY = currentScrollY;
     }, { passive: true });
 
@@ -168,7 +177,7 @@ function initHeroCanvas() {
 
     resize();
 
-    // Render node with vertical streak trails
+    // Render node with restrained streak lengths
     function drawNode(x, y, size, isCross, color, streak = 0) {
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.2;
@@ -194,18 +203,18 @@ function initHeroCanvas() {
         ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, width, height);
 
-        // Slightly longer decay to keep scroll energy visible while moving down
-        scrollVelocity *= 0.88;
+        // Fast decay so animation settles quickly
+        scrollVelocity *= 0.80;
         const absScrollVel = Math.abs(scrollVelocity);
 
-        const hoverRadius = 220;
-        const forceFactor = 0.35;
+        const hoverRadius = 180;
+        const forceFactor = 0.30;
 
         for (let i = 0; i < grid.length; i++) {
             const p = grid[i];
 
-            // 1. Global scroll displacement force on every node
-            p.vy -= scrollVelocity * 0.12;
+            // 1. Subtle global scroll wave
+            p.vy -= scrollVelocity * 0.025;
 
             // 2. Cursor local proximity force
             const dx = mouse.x - p.x;
@@ -216,11 +225,11 @@ function initHeroCanvas() {
                 const force = (1 - dist / hoverRadius) * forceFactor;
                 const angle = Math.atan2(dy, dx);
 
-                p.vx -= Math.cos(angle) * force * 8;
-                p.vy -= Math.sin(angle) * force * 8;
+                p.vx -= Math.cos(angle) * force * 7;
+                p.vy -= Math.sin(angle) * force * 7;
 
-                // Extra vertical distortion kick right under the cursor when scrolling
-                p.vy -= scrollVelocity * force * 0.85;
+                // Restrained vertical kick under cursor when scrolling
+                p.vy -= scrollVelocity * force * 0.25;
             }
 
             // Spring return force back to base grid coordinates
@@ -230,16 +239,16 @@ function initHeroCanvas() {
             p.vx += springDx * 0.08;
             p.vy += springDy * 0.08;
 
-            p.vx *= 0.80;
-            p.vy *= 0.80;
+            p.vx *= 0.82;
+            p.vy *= 0.82;
 
             p.x += p.vx;
             p.y += p.vy;
 
-            // Chromatic Separation & Vertical Motion Blur Streaks
+            // Tighter cap on split offsets and streak heights
             const displacement = Math.hypot(p.x - p.baseX, p.y - p.baseY);
-            const splitOffset = Math.min(displacement * 0.45 + absScrollVel * 0.65, 32);
-            const streak = Math.min(absScrollVel * 1.8, 45);
+            const splitOffset = Math.min(displacement * 0.35 + absScrollVel * 0.15, 12);
+            const streak = Math.min(absScrollVel * 0.35, 8); // Max streak capped at 8px
 
             if (splitOffset < 0.4 && streak < 0.4) {
                 drawNode(p.x, p.y, p.size, p.isCross, 'rgba(255, 255, 255, 0.18)', 0);
@@ -248,9 +257,9 @@ function initHeroCanvas() {
                 drawNode(
                     p.x - splitOffset,
                     p.y - splitOffset * 0.5,
-                    p.size + splitOffset * 0.2,
+                    p.size + splitOffset * 0.15,
                     p.isCross,
-                    `rgba(255, 45, 85, ${0.45 + splitOffset * 0.03})`,
+                    `rgba(255, 45, 85, ${0.4 + splitOffset * 0.02})`,
                     streak
                 );
 
@@ -258,14 +267,14 @@ function initHeroCanvas() {
                 drawNode(
                     p.x + splitOffset,
                     p.y + splitOffset * 0.5,
-                    p.size + splitOffset * 0.2,
+                    p.size + splitOffset * 0.15,
                     p.isCross,
-                    `rgba(0, 230, 255, ${0.45 + splitOffset * 0.03})`,
+                    `rgba(0, 230, 255, ${0.4 + splitOffset * 0.02})`,
                     streak
                 );
 
                 // WHITE Center Core
-                drawNode(p.x, p.y, p.size, p.isCross, 'rgba(255, 255, 255, 0.90)', streak * 0.5);
+                drawNode(p.x, p.y, p.size, p.isCross, 'rgba(255, 255, 255, 0.85)', streak * 0.3);
             }
         }
 
