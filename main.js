@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. REACTIVE MACRO LCD DISPLAY (DIRECT SUBPIXEL ILLUMINATION)
+// 4. REACTIVE MACRO LCD DISPLAY (PHOSPHOR DECAY & DYNAMIC VIBRATION)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -101,19 +101,29 @@ function initHeroCanvas() {
     const ctx = canvas.getContext('2d');
 
     let width, height;
+    let cols = 0;
+    let rows = 0;
+    let gridEnergy = []; // Energy buffer for phosphor decay trail
+
     const mouse = { x: -1000, y: -1000 };
 
-    // Tile / Macro Subpixel Grid Dimensions
-    const tileW = 40; 
-    const tileH = 34; 
-    const subW = 9;
-    const subH = 22;
-    const subY = 6;
-    const radius = 2.5;
+    // Larger Zoom Macro Dimensions
+    const tileW = 50; 
+    const tileH = 42; 
+    const subW = 11.5;
+    const subH = 26;
+    const subY = 8;
+    const radius = 3;
 
     function resize() {
         width = canvas.width = window.innerWidth;
         height = canvas.height = window.innerHeight;
+        
+        cols = Math.ceil(width / tileW) + 1;
+        rows = Math.ceil(height / tileH) + 1;
+        
+        // Reset energy array on resize
+        gridEnergy = new Float32Array(cols * rows);
     }
 
     window.addEventListener('resize', resize);
@@ -130,7 +140,7 @@ function initHeroCanvas() {
 
     resize();
 
-    // Helper to draw rounded subpixel rectangles
+    // Helper to draw rounded subpixel bars
     function drawSubpixel(x, y, color) {
         ctx.fillStyle = color;
         ctx.beginPath();
@@ -143,47 +153,53 @@ function initHeroCanvas() {
     }
 
     function animate() {
-        // Clear screen with deep substrate color
+        // Dark substrate background
         ctx.fillStyle = '#030305';
         ctx.fillRect(0, 0, width, height);
 
-        const cols = Math.ceil(width / tileW);
-        const rows = Math.ceil(height / tileH);
-        const hoverRadius = 220; // Radius around cursor where subpixels illuminate
+        const hoverRadius = 240;
+        const baseBrightness = 0.28; // Increased base visibility
+        const maxBrightness = 0.98;
 
         for (let r = 0; r < rows; r++) {
             for (let c = 0; c < cols; c++) {
+                const idx = r * cols + c;
                 const cellX = c * tileW;
                 const cellY = r * tileH;
 
-                // Center point of this pixel cluster
                 const centerX = cellX + tileW / 2;
                 const centerY = cellY + tileH / 2;
 
-                // Calculate distance directly from cursor
                 const dist = Math.hypot(centerX - mouse.x, centerY - mouse.y);
 
-                // Base brightness (dim grid)
-                let brightness = 0.14;
-
-                // Brighten subpixels beneath cursor
+                // Charge pixel energy if cursor is nearby
                 if (dist < hoverRadius) {
                     const factor = 1 - (dist / hoverRadius);
-                    const intensity = Math.pow(factor, 1.6); // Smooth quadratic falloff
-                    brightness = 0.14 + intensity * 0.81; // Lights up to ~95%
+                    const targetEnergy = Math.pow(factor, 1.4);
+                    if (targetEnergy > gridEnergy[idx]) {
+                        gridEnergy[idx] = targetEnergy;
+                    }
                 }
 
-                // Micro-stutter / electronic position jitter
-                const jitterX = (Math.random() - 0.5) * 0.65;
-                const jitterY = (Math.random() - 0.5) * 0.65;
+                // Decay current pixel energy over time (smooth fading trail)
+                gridEnergy[idx] *= 0.925;
+                if (gridEnergy[idx] < 0.001) gridEnergy[idx] = 0;
+
+                const currentEnergy = gridEnergy[idx];
+                const brightness = baseBrightness + currentEnergy * (maxBrightness - baseBrightness);
+
+                // Dynamic Jitter: Violently shakes when charged (energy ~1.0), subtle when idle
+                const jitterMagnitude = 0.35 + currentEnergy * 3.8; 
+                const jitterX = (Math.random() - 0.5) * jitterMagnitude;
+                const jitterY = (Math.random() - 0.5) * jitterMagnitude;
 
                 const drawX = cellX + jitterX;
                 const drawY = cellY + subY + jitterY;
 
-                // Draw Red, Green, Blue subpixels with dynamic brightness
-                drawSubpixel(drawX + 3, drawY, `rgba(240, 45, 45, ${brightness})`);
-                drawSubpixel(drawX + 15.5, drawY, `rgba(45, 240, 45, ${brightness})`);
-                drawSubpixel(drawX + 28, drawY, `rgba(45, 125, 255, ${brightness})`);
+                // Render RGB subpixel triplet
+                drawSubpixel(drawX + 4, drawY, `rgba(240, 45, 45, ${brightness})`);
+                drawSubpixel(drawX + 19.5, drawY, `rgba(45, 240, 45, ${brightness})`);
+                drawSubpixel(drawX + 35, drawY, `rgba(45, 125, 255, ${brightness})`);
             }
         }
 
