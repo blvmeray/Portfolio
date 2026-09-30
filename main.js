@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC RGB FIELD (HIGH FPS SPRITE-CACHED + LIGHT RIPPLE)
+// 4. GENERATIVE KINETIC RGB FIELD (ULTRA HIGH-FPS + DYNAMIC STATE BLEND)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -106,11 +106,12 @@ function initHeroCanvas() {
     let time = 0;
 
     const mouse = { x: -1000, y: -1000, vx: 0, vy: 0, lastX: -1000, lastY: -1000 };
+    let mouseActivity = 0; // Smooth factor: 0 = static cursor, 1 = moving cursor
     let lastScrollY = window.scrollY;
     let scrollVelocity = 0;
 
     // ------------------------------------------------------
-    // HIGH PERFORMANCE SPRITE CACHE (Pre-render vector text)
+    // HIGH PERFORMANCE SPRITE CACHE
     // ------------------------------------------------------
     const sprites = {};
 
@@ -219,30 +220,35 @@ function initHeroCanvas() {
 
     resize();
 
-    // Fast GPU-accelerated sprite draw call
-    function drawSprite(x, y, spriteObj, alpha, angle = 0, scaleY = 1) {
+    // Zero-stack allocation transform renderer (Ultra fast)
+    function drawSpriteFast(x, y, spriteObj, alpha, angle = 0, scaleY = 1) {
         if (alpha <= 0.01) return;
-        ctx.save();
-        ctx.translate(x, y);
+        ctx.globalAlpha = alpha;
+        ctx.setTransform(1, 0, 0, 1, x, y);
         if (angle !== 0) ctx.rotate(angle);
         if (scaleY !== 1) ctx.scale(1, scaleY);
-        ctx.globalAlpha = alpha;
         ctx.drawImage(spriteObj.canvas, -spriteObj.halfDim, -spriteObj.halfDim);
-        ctx.restore();
     }
 
     function animate() {
-        time += 0.025; // Global timer for expanding light rings
+        time += 0.025;
 
+        // Reset canvas background
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, width, height);
 
         scrollVelocity *= 0.80;
         const absScrollVel = Math.abs(scrollVelocity);
 
-        mouse.vx *= 0.85;
-        mouse.vy *= 0.85;
+        mouse.vx *= 0.82;
+        mouse.vy *= 0.82;
         const mouseSpeed = Math.hypot(mouse.vx, mouse.vy);
+
+        // Calculate smooth state blend (0 = Static Cursor, 1 = Moving Cursor)
+        const isMoving = mouseSpeed > 0.2;
+        mouseActivity += ((isMoving ? 1.0 : 0.0) - mouseActivity) * 0.08;
+        const staticFactor = 1 - mouseActivity; // 1 when still, 0 when moving
 
         // Scanline glitch slices during scroll
         const activeGlitches = [];
@@ -275,14 +281,14 @@ function initHeroCanvas() {
             // 2. Scroll impulse
             p.vy -= scrollVelocity * 0.02;
 
-            // 3. Cursor distance & light ripple equation
+            // 3. Distance & Light wave calculation
             const dx = mouse.x - p.x;
             const dy = mouse.y - p.y;
             const dist = Math.hypot(dx, dy);
 
-            // Circular breathing light wave radiating outwards from cursor
-            const rippleWave = (Math.sin(dist * 0.025 - time * 3.2) + 1) * 0.5; // Smooth 0.0 to 1.0 range
-            const waveGlow = Math.max(0, (1 - dist / 700)) * rippleWave * 0.35;
+            // Light wave pulse ONLY active when cursor is static
+            const rippleWave = (Math.sin(dist * 0.025 - time * 3.2) + 1) * 0.5;
+            const waveGlow = Math.max(0, (1 - dist / 750)) * rippleWave * 0.42 * staticFactor;
 
             let spinRate = 0.003 * p.spinDir;
 
@@ -293,13 +299,13 @@ function initHeroCanvas() {
                 const angle = Math.atan2(dy, dx);
                 const impulse = smoothFactor * 10;
 
-                // Radial displacement
+                // Radial repulsion
                 p.vx -= Math.cos(angle) * impulse;
                 p.vy -= Math.sin(angle) * impulse;
 
-                // Continuous static & active vortex rotation
-                const staticSpin = smoothFactor * 0.04 * p.spinDir;
-                const activeSpin = smoothFactor * Math.min(mouseSpeed * 0.08, 2.2);
+                // Static spin vs active movement vortex
+                const staticSpin = smoothFactor * 0.04 * p.spinDir * staticFactor;
+                const activeSpin = smoothFactor * Math.min(mouseSpeed * 0.08, 2.2) * mouseActivity;
                 spinRate += staticSpin + activeSpin;
 
                 // Orbital velocity force
@@ -338,10 +344,10 @@ function initHeroCanvas() {
 
             const symSprites = sprites[p.symbol];
 
-            // Render sprites efficiently
+            // Render sprites fast
             if (displacement < 0.3 && streak < 0.3 && Math.abs(glitchX) < 0.5) {
                 const idleAlpha = Math.min(0.38 + waveGlow, 0.85);
-                drawSprite(renderX, renderY, symSprites.base, idleAlpha, p.angle, 1);
+                drawSpriteFast(renderX, renderY, symSprites.base, idleAlpha, p.angle, 1);
             } else {
                 const isGlitched = Math.abs(glitchX) > 0.5;
                 const redAlpha = isGlitched ? 0.85 : Math.min(0.35 + activity * 0.55 + waveGlow, 0.95);
@@ -349,7 +355,7 @@ function initHeroCanvas() {
                 const coreAlpha = Math.min(0.45 + activity * 0.55 + waveGlow, 0.95);
 
                 // RED Channel
-                drawSprite(
+                drawSpriteFast(
                     renderX - splitOffset,
                     renderY - splitOffset * 0.4,
                     symSprites.red,
@@ -359,7 +365,7 @@ function initHeroCanvas() {
                 );
 
                 // CYAN Channel
-                drawSprite(
+                drawSpriteFast(
                     renderX + splitOffset,
                     renderY + splitOffset * 0.4,
                     symSprites.cyan,
@@ -369,7 +375,7 @@ function initHeroCanvas() {
                 );
 
                 // WHITE Core
-                drawSprite(
+                drawSpriteFast(
                     renderX,
                     renderY,
                     symSprites.white,
@@ -379,6 +385,9 @@ function initHeroCanvas() {
                 );
             }
         }
+
+        // Reset global transform matrix state
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
 
         requestAnimationFrame(animate);
     }
