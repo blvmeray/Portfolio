@@ -4,11 +4,11 @@
 // ==========================================================
 const artworks = [
     {
-        id: "raven-01",
-        title: "Raven Series // Visual Distortion 01",
-        tags: "Natron • Processing • Chromatic Aberration",
-        description: "Kinetic motion study exploring RGB channel splitting and dithered particle grids.",
-        mediaType: "placeholder", // Change to "image" or "video" when you add asset files
+        id: "Smoking Anima",
+        title: "Smoking Anima// Visual Distortion 01",
+        tags: "Natron • Processing •",
+        description: "Vices continue even when a lighter wont spark.",
+        mediaType: "gif", // Change to "image" or "video" when you add asset files
         src: ""
     },
     {
