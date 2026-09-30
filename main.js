@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. FULL-PAGE GENERATIVE KINETIC RGB FIELD (FEATHERED & HIGH DYNAMIC)
+// 4. GENERATIVE KINETIC RGB FIELD (SCANLINE GLITCH + SOFTENED ABERRATION)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -137,7 +137,7 @@ function initHeroCanvas() {
 
     window.addEventListener('resize', resize);
     
-    // Track mouse coordinates across viewport
+    // Viewport mouse tracking
     window.addEventListener('mousemove', (e) => {
         const currentX = e.clientX;
         const currentY = e.clientY;
@@ -152,7 +152,7 @@ function initHeroCanvas() {
         mouse.lastY = currentY;
     });
 
-    // Scroll velocity listener with boundary rebound
+    // Scroll listener with boundary rebound
     window.addEventListener('scroll', () => {
         const currentScrollY = window.scrollY;
         const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
@@ -163,7 +163,7 @@ function initHeroCanvas() {
         } else if (currentScrollY >= maxScroll - 2 && deltaY > 0) {
             scrollVelocity = -Math.abs(scrollVelocity) * 0.4 - 5;
         } else {
-            scrollVelocity += deltaY * 0.3;
+            scrollVelocity += deltaY * 0.35;
         }
 
         lastScrollY = currentScrollY;
@@ -201,37 +201,59 @@ function initHeroCanvas() {
         ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, width, height);
 
-        scrollVelocity *= 0.82;
+        scrollVelocity *= 0.80;
         const absScrollVel = Math.abs(scrollVelocity);
 
-        const hoverRadius = 240; // Broadened interaction field for smoother gradient transitions
+        // Generate dynamic horizontal scanline glitch bands during scroll
+        const activeGlitches = [];
+        if (absScrollVel > 1.2) {
+            const glitchCount = Math.min(Math.floor(absScrollVel * 0.25), 4);
+            for (let g = 0; g < glitchCount; g++) {
+                if (Math.random() < 0.4) {
+                    const sliceY = Math.random() * height;
+                    const sliceH = 12 + Math.random() * 32;
+                    const shiftX = (Math.random() - 0.5) * Math.min(absScrollVel * 2.2, 28);
+                    activeGlitches.push({ minY: sliceY, maxY: sliceY + sliceH, shiftX });
+                }
+            }
+        }
+
+        const hoverRadius = 240;
 
         for (let i = 0; i < grid.length; i++) {
             const p = grid[i];
 
-            // 1. Gentle background scroll displacement
+            // 1. Check for horizontal scanline glitch displacement
+            let glitchX = 0;
+            for (let g = 0; g < activeGlitches.length; g++) {
+                if (p.y >= activeGlitches[g].minY && p.y <= activeGlitches[g].maxY) {
+                    glitchX = activeGlitches[g].shiftX;
+                    break;
+                }
+            }
+
+            // 2. Gentle background scroll displacement
             p.vy -= scrollVelocity * 0.02;
 
-            // 2. Cursor repulsion with smooth cubic feathering curve
+            // 3. Cursor proximity force with cubic feathering
             const dx = mouse.x - p.x;
             const dy = mouse.y - p.y;
             const dist = Math.hypot(dx, dy);
 
             if (dist < hoverRadius && dist > 0) {
                 const normDist = dist / hoverRadius;
-                // Cubic ease-out curve feathers out seamlessly near hoverRadius
                 const smoothFactor = Math.pow(1 - normDist, 2.5);
 
                 const angle = Math.atan2(dy, dx);
-                const impulse = smoothFactor * 14; // Re-amped displacement under cursor
+                const impulse = smoothFactor * 13;
 
                 p.vx -= Math.cos(angle) * impulse;
                 p.vy -= Math.sin(angle) * impulse;
 
-                p.vy -= scrollVelocity * smoothFactor * 0.35;
+                p.vy -= scrollVelocity * smoothFactor * 0.3;
             }
 
-            // Spring physics return to grid anchors
+            // Spring return force
             const springDx = p.baseX - p.x;
             const springDy = p.baseY - p.y;
 
@@ -244,26 +266,31 @@ function initHeroCanvas() {
             p.x += p.vx;
             p.y += p.vy;
 
-            // Compute dynamic displacement activity for smooth alpha blending
+            // Compute rendering position including glitch offset
+            const renderX = p.x + glitchX;
+            const renderY = p.y;
+
             const displacement = Math.hypot(p.x - p.baseX, p.y - p.baseY);
-            const activity = Math.min(displacement / 18, 1.0); // 0 at rest, 1 when active
+            const activity = Math.min(displacement / 18, 1.0);
 
-            const splitOffset = Math.min(displacement * 0.48 + absScrollVel * 0.15, 18);
-            const streak = Math.min(absScrollVel * 0.35, 8);
+            // Softened chromatic separation distance & subtle streak
+            const splitOffset = Math.min(displacement * 0.4 + absScrollVel * 0.08, 10);
+            const streak = Math.min(absScrollVel * 0.2, 5);
 
-            // Feathered alpha channels eliminate hard outer edge lines
-            if (displacement < 0.3 && streak < 0.3) {
-                drawNode(p.x, p.y, p.size, p.isCross, 'rgba(255, 255, 255, 0.18)', 0);
+            if (displacement < 0.3 && streak < 0.3 && Math.abs(glitchX) < 0.5) {
+                drawNode(renderX, renderY, p.size, p.isCross, 'rgba(255, 255, 255, 0.18)', 0);
             } else {
-                const redAlpha = 0.2 + activity * 0.65;
-                const cyanAlpha = 0.2 + activity * 0.65;
-                const coreAlpha = 0.25 + activity * 0.65;
+                // Softened alpha values for blurred/smooth color channels
+                const isGlitched = Math.abs(glitchX) > 0.5;
+                const redAlpha = isGlitched ? 0.7 : (0.15 + activity * 0.5);
+                const cyanAlpha = isGlitched ? 0.7 : (0.15 + activity * 0.5);
+                const coreAlpha = 0.25 + activity * 0.6;
 
                 // RED Channel
                 drawNode(
-                    p.x - splitOffset,
-                    p.y - splitOffset * 0.5,
-                    p.size + splitOffset * 0.2,
+                    renderX - splitOffset,
+                    renderY - splitOffset * 0.4,
+                    p.size + splitOffset * 0.1,
                     p.isCross,
                     `rgba(255, 45, 85, ${redAlpha})`,
                     streak
@@ -271,16 +298,16 @@ function initHeroCanvas() {
 
                 // CYAN Channel
                 drawNode(
-                    p.x + splitOffset,
-                    p.y + splitOffset * 0.5,
-                    p.size + splitOffset * 0.2,
+                    renderX + splitOffset,
+                    renderY + splitOffset * 0.4,
+                    p.size + splitOffset * 0.1,
                     p.isCross,
                     `rgba(0, 230, 255, ${cyanAlpha})`,
                     streak
                 );
 
                 // WHITE Core
-                drawNode(p.x, p.y, p.size, p.isCross, `rgba(255, 255, 255, ${coreAlpha})`, streak * 0.3);
+                drawNode(renderX, renderY, p.size, p.isCross, `rgba(255, 255, 255, ${coreAlpha})`, streak * 0.2);
             }
         }
 
