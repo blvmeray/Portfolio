@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. HIGH-PERFORMANCE GENERATIVE KINETIC RGB FIELD
+// 4. FULL-PAGE GENERATIVE KINETIC RGB FIELD
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -102,7 +102,7 @@ function initHeroCanvas() {
 
     let width, height;
     let grid = [];
-    const spacing = 36; // Distance between kinetic nodes
+    const spacing = 36;
 
     const mouse = { x: -1000, y: -1000, vx: 0, vy: 0, lastX: -1000, lastY: -1000 };
 
@@ -120,7 +120,7 @@ function initHeroCanvas() {
                     y: r * spacing,
                     vx: 0,
                     vy: 0,
-                    size: (c % 2 === 0 && r % 2 === 0) ? 4 : 2, // Varied glyph sizes
+                    size: (c % 2 === 0 && r % 2 === 0) ? 4 : 2,
                     isCross: (c + r) % 3 === 0
                 });
             }
@@ -134,10 +134,11 @@ function initHeroCanvas() {
     }
 
     window.addEventListener('resize', resize);
+    
+    // Viewport-relative tracking so mouse interaction works across full page scroll
     window.addEventListener('mousemove', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const currentX = e.clientX - rect.left;
-        const currentY = e.clientY - rect.top;
+        const currentX = e.clientX;
+        const currentY = e.clientY;
 
         mouse.vx = currentX - mouse.lastX;
         mouse.vy = currentY - mouse.lastY;
@@ -156,7 +157,6 @@ function initHeroCanvas() {
 
     resize();
 
-    // Helper to render glyph shapes cleanly
     function drawNode(x, y, size, isCross, color) {
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.2;
@@ -176,18 +176,15 @@ function initHeroCanvas() {
     }
 
     function animate() {
-        // Dark background clearing
         ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, width, height);
 
         const hoverRadius = 180;
         const forceFactor = 0.35;
 
-        // Update Physics & Springs
         for (let i = 0; i < grid.length; i++) {
             const p = grid[i];
 
-            // Distance to mouse
             const dx = mouse.x - p.x;
             const dy = mouse.y - p.y;
             const dist = Math.hypot(dx, dy);
@@ -196,34 +193,29 @@ function initHeroCanvas() {
                 const force = (1 - dist / hoverRadius) * forceFactor;
                 const angle = Math.atan2(dy, dx);
 
-                // Push point away from cursor based on mouse velocity
                 p.vx -= Math.cos(angle) * force * 8;
                 p.vy -= Math.sin(angle) * force * 8;
             }
 
-            // Spring return force to base position
             const springDx = p.baseX - p.x;
             const springDy = p.baseY - p.y;
 
             p.vx += springDx * 0.08;
             p.vy += springDy * 0.08;
 
-            // Friction / Damping
             p.vx *= 0.82;
             p.vy *= 0.82;
 
             p.x += p.vx;
             p.y += p.vy;
 
-            // Chromatic Separation Vector
             const displacement = Math.hypot(p.x - p.baseX, p.y - p.baseY);
             const splitOffset = Math.min(displacement * 0.45, 14);
 
-            // Draw Base Dim Node if motionless
             if (splitOffset < 0.4) {
                 drawNode(p.x, p.y, p.size, p.isCross, 'rgba(255, 255, 255, 0.18)');
             } else {
-                // RED Channel Offset (Natron RGB Split)
+                // RED Channel Offset
                 drawNode(
                     p.x - splitOffset,
                     p.y - splitOffset * 0.5,
@@ -232,7 +224,7 @@ function initHeroCanvas() {
                     `rgba(255, 45, 85, ${0.4 + splitOffset * 0.05})`
                 );
 
-                // CYAN / BLUE Channel Offset
+                // CYAN Channel Offset
                 drawNode(
                     p.x + splitOffset,
                     p.y + splitOffset * 0.5,
