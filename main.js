@@ -240,10 +240,14 @@ function initHeroCanvas() {
                 }
             }
 
-            // 2. Scroll displacement
+            // 2. Ambient subtle floating wave when canvas is idle
+            const ambientWaveY = Math.sin(time + p.baseX * 0.015 + p.baseY * 0.015) * 2.5;
+            const targetBaseY = p.baseY + ambientWaveY;
+
+            // 3. Scroll displacement
             p.vy -= scrollVelocity * 0.02;
 
-            // 3. Cursor proximity dynamics
+            // 4. Cursor proximity dynamics
             const dx = mouse.x - p.x;
             const dy = mouse.y - p.y;
             const dist = Math.hypot(dx, dy);
@@ -261,7 +265,8 @@ function initHeroCanvas() {
                 p.vx -= Math.cos(angle) * impulse;
                 p.vy -= Math.sin(angle) * impulse;
 
-                // Static & Active cursor spin
+                // ELEGANT STATIC & ACTIVE CURSOR SPIN:
+                // Spindown accelerates significantly under cursor even when mouse is completely static!
                 const staticSpin = smoothFactor * 0.045 * p.spinDir;
                 const activeSpin = smoothFactor * Math.min(mouseSpeed * 0.08, 2.5);
                 spinRate += staticSpin + activeSpin;
@@ -280,7 +285,7 @@ function initHeroCanvas() {
 
             // Spring return force back to base anchor position
             const springDx = p.baseX - p.x;
-            const springDy = p.baseY - p.y;
+            const springDy = targetBaseY - p.y;
 
             p.vx += springDx * 0.075;
             p.vy += springDy * 0.075;
@@ -302,6 +307,7 @@ function initHeroCanvas() {
 
             // Dynamic saturated color rendering
             if (displacement < 0.3 && streak < 0.3 && Math.abs(glitchX) < 0.5) {
+                // Boosted idle symbol brightness
                 drawSymbolNode(renderX, renderY, p.symbol, p.fontSize, 'rgba(180, 245, 255, 0.42)', p.angle, 0);
             } else {
                 const isGlitched = Math.abs(glitchX) > 0.5;
