@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC RGB FIELD (SCANLINE GLITCH + SOFTENED ABERRATION)
+// 4. GENERATIVE KINETIC RGB FIELD (VORTEX SWIRL + HIGH SATURATION)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -137,7 +137,7 @@ function initHeroCanvas() {
 
     window.addEventListener('resize', resize);
     
-    // Viewport mouse tracking
+    // Viewport mouse velocity tracking
     window.addEventListener('mousemove', (e) => {
         const currentX = e.clientX;
         const currentY = e.clientY;
@@ -204,7 +204,12 @@ function initHeroCanvas() {
         scrollVelocity *= 0.80;
         const absScrollVel = Math.abs(scrollVelocity);
 
-        // Generate dynamic horizontal scanline glitch bands during scroll
+        // Smoothly decay mouse movement velocity
+        mouse.vx *= 0.85;
+        mouse.vy *= 0.85;
+        const mouseSpeed = Math.hypot(mouse.vx, mouse.vy);
+
+        // Scanline glitch slices during scroll
         const activeGlitches = [];
         if (absScrollVel > 1.2) {
             const glitchCount = Math.min(Math.floor(absScrollVel * 0.25), 4);
@@ -223,7 +228,7 @@ function initHeroCanvas() {
         for (let i = 0; i < grid.length; i++) {
             const p = grid[i];
 
-            // 1. Check for horizontal scanline glitch displacement
+            // 1. Scanline glitch displacement
             let glitchX = 0;
             for (let g = 0; g < activeGlitches.length; g++) {
                 if (p.y >= activeGlitches[g].minY && p.y <= activeGlitches[g].maxY) {
@@ -232,10 +237,10 @@ function initHeroCanvas() {
                 }
             }
 
-            // 2. Gentle background scroll displacement
+            // 2. Background scroll wave
             p.vy -= scrollVelocity * 0.02;
 
-            // 3. Cursor proximity force with cubic feathering
+            // 3. Cursor attraction + slow rotational vortex force when cursor moves
             const dx = mouse.x - p.x;
             const dy = mouse.y - p.y;
             const dist = Math.hypot(dx, dy);
@@ -245,10 +250,19 @@ function initHeroCanvas() {
                 const smoothFactor = Math.pow(1 - normDist, 2.5);
 
                 const angle = Math.atan2(dy, dx);
-                const impulse = smoothFactor * 13;
+                const impulse = smoothFactor * 10;
 
+                // Radial repulsion
                 p.vx -= Math.cos(angle) * impulse;
                 p.vy -= Math.sin(angle) * impulse;
+
+                // Rotational vortex spin when mouse moves
+                if (mouseSpeed > 0.1) {
+                    const spinFactor = smoothFactor * Math.min(mouseSpeed * 0.08, 2.5);
+                    const tangentAngle = angle + Math.PI / 2; // 90 degree perpendicular force
+                    p.vx += Math.cos(tangentAngle) * spinFactor;
+                    p.vy += Math.sin(tangentAngle) * spinFactor;
+                }
 
                 p.vy -= scrollVelocity * smoothFactor * 0.3;
             }
@@ -266,25 +280,24 @@ function initHeroCanvas() {
             p.x += p.vx;
             p.y += p.vy;
 
-            // Compute rendering position including glitch offset
             const renderX = p.x + glitchX;
             const renderY = p.y;
 
             const displacement = Math.hypot(p.x - p.baseX, p.y - p.baseY);
             const activity = Math.min(displacement / 18, 1.0);
 
-            // Softened chromatic separation distance & subtle streak
             const splitOffset = Math.min(displacement * 0.4 + absScrollVel * 0.08, 10);
             const streak = Math.min(absScrollVel * 0.2, 5);
 
+            // Vibrant, high-saturation color palette
             if (displacement < 0.3 && streak < 0.3 && Math.abs(glitchX) < 0.5) {
-                drawNode(renderX, renderY, p.size, p.isCross, 'rgba(255, 255, 255, 0.18)', 0);
+                // Boosted idle pixel brightness & glow tone
+                drawNode(renderX, renderY, p.size, p.isCross, 'rgba(180, 245, 255, 0.38)', 0);
             } else {
-                // Softened alpha values for blurred/smooth color channels
                 const isGlitched = Math.abs(glitchX) > 0.5;
-                const redAlpha = isGlitched ? 0.7 : (0.15 + activity * 0.5);
-                const cyanAlpha = isGlitched ? 0.7 : (0.15 + activity * 0.5);
-                const coreAlpha = 0.25 + activity * 0.6;
+                const redAlpha = isGlitched ? 0.85 : (0.35 + activity * 0.55);
+                const cyanAlpha = isGlitched ? 0.85 : (0.35 + activity * 0.55);
+                const coreAlpha = 0.45 + activity * 0.55;
 
                 // RED Channel
                 drawNode(
@@ -292,7 +305,7 @@ function initHeroCanvas() {
                     renderY - splitOffset * 0.4,
                     p.size + splitOffset * 0.1,
                     p.isCross,
-                    `rgba(255, 45, 85, ${redAlpha})`,
+                    `rgba(255, 30, 90, ${redAlpha})`,
                     streak
                 );
 
@@ -302,7 +315,7 @@ function initHeroCanvas() {
                     renderY + splitOffset * 0.4,
                     p.size + splitOffset * 0.1,
                     p.isCross,
-                    `rgba(0, 230, 255, ${cyanAlpha})`,
+                    `rgba(0, 240, 255, ${cyanAlpha})`,
                     streak
                 );
 
