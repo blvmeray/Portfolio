@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC FIELD (0.75 DASH OPACITY & TARGETED ABERRATION)
+// 4. GENERATIVE KINETIC FIELD (EQUALIZED ABERRATION EFFECT)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -212,7 +212,7 @@ function initHeroCanvas() {
 
         const hoverRadius = 240;
 
-        // Pass 1: Compute ultra-sparse fairy light sparkle
+        // Pass 1: Compute sparse fairy light sparkle glow
         for (let i = 0; i < grid.length; i++) {
             const p = grid[i];
             p.sparkleGlow = 0;
@@ -222,7 +222,6 @@ function initHeroCanvas() {
                 const t2 = time * 0.5 + p.seed * 0.41;
                 const wave = Math.sin(t1) * Math.cos(t2);
 
-                // Raised threshold (> 0.88) makes sparkles rare and delicate
                 if (wave > 0.88) {
                     p.sparkleGlow = Math.pow((wave - 0.88) / 0.12, 2.2);
                 }
@@ -322,9 +321,9 @@ function initHeroCanvas() {
                 }
 
             } else {
-                // '—' (EM DASH) - BASE OPACITY 0.75 + EXCLUSIVE CHROMATIC ABERRATION
+                // '—' (EM DASH) - MATCHED CHROMATIC ABERRATION FOR BOTH CURSOR AND FAIRY LIGHT INTERACTIONS
 
-                // Check 4 adjacent neighbors for sparkling 'V'
+                // Check adjacent neighbor cells for sparkling 'V'
                 let neighborSparkle = 0;
                 const neighbors = [
                     (p.r - 1) * cols + p.c,
@@ -350,38 +349,24 @@ function initHeroCanvas() {
                 const renderX = p.x + glitchX + dashGlitchX;
                 const renderY = p.y;
 
-                if (isNearCursor) {
-                    // High-Contrast Cursor Hover Aberration on Em Dashes
-                    const normDist = dist / hoverRadius;
-                    const proximity = Math.pow(1 - normDist, 2);
-                    const splitOffset = Math.min(displacement * 0.35 + absScrollVel * 0.08 + proximity * 6.0, 9.0);
+                if (isNearCursor || neighborSparkle > 0.05) {
+                    // Equalized Chromatic Aberration formula
+                    const normDist = isNearCursor ? dist / hoverRadius : 1.0;
+                    const cursorProximity = isNearCursor ? Math.pow(1 - normDist, 2) : 0;
+                    const intensity = Math.max(cursorProximity, neighborSparkle);
+
+                    const splitOffset = Math.min(displacement * 0.35 + absScrollVel * 0.08 + intensity * 6.0, 9.0);
 
                     // Cyan Offset Channel
-                    ctx.fillStyle = `rgba(0, 240, 255, ${0.55 + proximity * 0.45})`;
+                    ctx.fillStyle = `rgba(0, 240, 255, ${0.55 + intensity * 0.45})`;
                     ctx.fillText(p.symbol, renderX + splitOffset, renderY + splitOffset * 0.3);
 
                     // Red Offset Channel
-                    ctx.fillStyle = `rgba(255, 30, 80, ${0.55 + proximity * 0.45})`;
+                    ctx.fillStyle = `rgba(255, 30, 80, ${0.55 + intensity * 0.45})`;
                     ctx.fillText(p.symbol, renderX - splitOffset, renderY - splitOffset * 0.3);
 
                     // Core White Text
-                    ctx.fillStyle = `rgba(255, 255, 255, ${0.85 + proximity * 0.15})`;
-                    ctx.fillText(p.symbol, renderX, renderY);
-
-                } else if (neighborSparkle > 0.05) {
-                    // Sympathetic Aberration + Glitch when neighbor 'V' sparkles
-                    const splitOffset = 4.5 * neighborSparkle;
-
-                    // Cyan channel split
-                    ctx.fillStyle = `rgba(0, 240, 255, ${0.60 * neighborSparkle})`;
-                    ctx.fillText(p.symbol, renderX + splitOffset, renderY);
-
-                    // Red channel split
-                    ctx.fillStyle = `rgba(255, 30, 80, ${0.70 * neighborSparkle})`;
-                    ctx.fillText(p.symbol, renderX - splitOffset, renderY);
-
-                    // Core text
-                    ctx.fillStyle = `rgba(255, 255, 255, ${0.75 + neighborSparkle * 0.25})`;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.85 + intensity * 0.15})`;
                     ctx.fillText(p.symbol, renderX, renderY);
 
                 } else if (activity > 0.05) {
