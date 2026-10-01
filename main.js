@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC FIELD (FLAT HIGH-FPS + RED CURSOR GLOW)
+// 4. GENERATIVE KINETIC FIELD (RED TRAIL + SELECTIVE 'V' PATTERN)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -179,7 +179,6 @@ function initHeroCanvas() {
         ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, width, height);
 
-        // Pre-configure text rendering defaults once per frame for 60 FPS
         ctx.font = '700 12px "Space Mono", monospace, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -187,14 +186,14 @@ function initHeroCanvas() {
         scrollVelocity *= 0.80;
         const absScrollVel = Math.abs(scrollVelocity);
 
-        // Decay mouse velocity
         mouse.vx *= 0.85;
         mouse.vy *= 0.85;
         const mouseSpeed = Math.hypot(mouse.vx, mouse.vy);
 
+        const time = Date.now() * 0.002;
+
         // Scanline glitch slices
         const activeGlitches = [];
-
         if (absScrollVel > 1.2) {
             const glitchCount = Math.min(Math.floor(absScrollVel * 0.25), 4);
             for (let g = 0; g < glitchCount; g++) {
@@ -207,20 +206,12 @@ function initHeroCanvas() {
             }
         }
 
-        // Ambient background glitches
-        if (Math.random() < 0.15) {
-            const sliceY = Math.random() * height;
-            const sliceH = 8 + Math.random() * 20;
-            const shiftX = (Math.random() - 0.5) * (Math.random() < 0.3 ? 16 : 6);
-            activeGlitches.push({ minY: sliceY, maxY: sliceY + sliceH, shiftX });
-        }
-
         const hoverRadius = 240;
 
         for (let i = 0; i < grid.length; i++) {
             const p = grid[i];
 
-            // Scanline glitch displacement
+            // 1. Scanline glitch displacement
             let glitchX = 0;
             for (let g = 0; g < activeGlitches.length; g++) {
                 if (p.y >= activeGlitches[g].minY && p.y <= activeGlitches[g].maxY) {
@@ -229,10 +220,17 @@ function initHeroCanvas() {
                 }
             }
 
-            // Occasional micro jitter
-            let microJitterX = 0;
-            if (Math.random() < 0.002) {
-                microJitterX = (Math.random() - 0.5) * 6;
+            // 2. Continuous Set Pattern for "V" symbols (Diagonal wave glow/glitch)
+            let patternGlow = 0;
+            let patternGlitchX = 0;
+
+            if (p.symbol === "V") {
+                // Wave angle math creating rhythmic pulses across the grid
+                const wave = Math.sin(time + p.baseX * 0.006 + p.baseY * 0.006);
+                if (wave > 0.6) {
+                    patternGlow = (wave - 0.6) / 0.4; // Normalized 0 to 1 intensity
+                    patternGlitchX = Math.sin(time * 8 + p.baseY) * 2.5 * patternGlow;
+                }
             }
 
             // Background scroll wave
@@ -278,49 +276,54 @@ function initHeroCanvas() {
             p.x += p.vx;
             p.y += p.vy;
 
-            const renderX = p.x + glitchX + microJitterX;
+            const renderX = p.x + glitchX + patternGlitchX;
             const renderY = p.y;
 
             const displacement = Math.hypot(p.x - p.baseX, p.y - p.baseY);
-            const isGlitched = Math.abs(glitchX) > 0.5 || Math.abs(microJitterX) > 0.5;
+            const activity = Math.min(displacement / 16, 1.0); // Kinetic trail intensity
             const isNearCursor = dist < hoverRadius;
 
-            if (isNearCursor) {
-                const normDist = dist / hoverRadius;
-                const proximity = Math.pow(1 - normDist, 2); // Intensity scales closer to mouse
-                const splitOffset = Math.min(displacement * 0.22 + absScrollVel * 0.05, 4.5);
+            if (p.symbol === "V") {
+                // 'V' UNDER CURSOR OR TRAIL ACTIVE
+                if (isNearCursor || activity > 0.05) {
+                    const normDist = isNearCursor ? dist / hoverRadius : 1.0;
+                    const proximity = isNearCursor ? Math.pow(1 - normDist, 2) : 0;
+                    const intensity = Math.max(proximity, activity);
 
-                // Soft Ambient Red Glow Layer
-                ctx.fillStyle = `rgba(255, 20, 70, ${0.12 + proximity * 0.35})`;
-                ctx.fillText(p.symbol, renderX - splitOffset * 0.4, renderY - splitOffset * 0.2);
+                    const splitOffset = Math.min(displacement * 0.22 + absScrollVel * 0.05, 5.0);
 
-                // Slight Cyan Accent on high displacement
-                if (splitOffset > 0.8) {
-                    ctx.fillStyle = `rgba(0, 240, 255, ${proximity * 0.35})`;
-                    ctx.fillText(p.symbol, renderX + splitOffset, renderY + splitOffset * 0.4);
+                    // Red Glow Layer (Matching Trail & Under Cursor)
+                    ctx.fillStyle = `rgba(255, 30, 80, ${0.15 + intensity * 0.45})`;
+                    ctx.fillText(p.symbol, renderX - splitOffset * 0.5, renderY - splitOffset * 0.2);
+
+                    // Core Neon Red
+                    ctx.fillStyle = `rgba(255, 45, 90, ${0.40 + intensity * 0.60})`;
+                    ctx.fillText(p.symbol, renderX, renderY);
+
+                } else if (patternGlow > 0) {
+                    // Patterned Glitch/Glow state at rest
+                    ctx.fillStyle = `rgba(255, 30, 80, ${0.10 + patternGlow * 0.30})`;
+                    ctx.fillText(p.symbol, renderX - 1, renderY);
+
+                    ctx.fillStyle = `rgba(255, 60, 100, ${0.25 + patternGlow * 0.55})`;
+                    ctx.fillText(p.symbol, renderX, renderY);
+
+                } else {
+                    // Clean Idle 'V'
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+                    ctx.fillText(p.symbol, renderX, renderY);
                 }
-
-                // Core Vibrant Neon Red Under Cursor
-                ctx.fillStyle = `rgba(255, 45, 85, ${0.35 + proximity * 0.65})`;
-                ctx.fillText(p.symbol, renderX, renderY);
-
-            } else if (displacement > 0.3 || isGlitched) {
-                // Active Displacement / Scroll / Glitch state
-                const activity = Math.min(displacement / 18, 1.0);
-                const splitOffset = Math.min(displacement * 0.2 + absScrollVel * 0.05, 4.0);
-
-                // Subtle Red split
-                ctx.fillStyle = `rgba(255, 30, 80, ${0.20 + activity * 0.35})`;
-                ctx.fillText(p.symbol, renderX - splitOffset, renderY);
-
-                // Core highlight
-                ctx.fillStyle = `rgba(255, 255, 255, ${0.18 + activity * 0.45})`;
-                ctx.fillText(p.symbol, renderX, renderY);
-
             } else {
-                // Pure Idle State: Clean, low-opacity flat symbols
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-                ctx.fillText(p.symbol, renderX, renderY);
+                // '—' (EM DASH) - STAYS MUTED / MONOCHROME (NO RED HOVER LIGHTING)
+                if (activity > 0.05) {
+                    // Trail displacement for dashes uses soft white/neutral tint
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.12 + activity * 0.35})`;
+                    ctx.fillText(p.symbol, renderX, renderY);
+                } else {
+                    // Clean Idle Dash
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+                    ctx.fillText(p.symbol, renderX, renderY);
+                }
             }
         }
 
