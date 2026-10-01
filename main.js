@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC FIELD (ALWAYS-RED 'V' + AMBIENT GLITCH)
+// 4. GENERATIVE KINETIC FIELD (3D HOLOGRAPHIC RED SYMBOLS)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -175,16 +175,28 @@ function initHeroCanvas() {
 
     resize();
 
-    function drawSymbolNode(x, y, symbol, color, streak = 0) {
+    // 3D Holographic Rendering Engine
+    function drawHoloSymbol(x, y, symbol, fillColor, streak = 0) {
         ctx.save();
         ctx.translate(x, y);
-        ctx.fillStyle = color;
 
         if (streak > 0) {
             ctx.scale(1, 1 + streak * 0.15);
         }
 
+        // Layer 1: Holographic Offset Outline (Cyan Edge for 3D depth)
+        ctx.lineWidth = 1.6;
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
+        ctx.strokeText(symbol, 0.8, -0.6);
+
+        // Layer 2: Main Holographic Red Outline Border
+        ctx.strokeStyle = 'rgba(255, 30, 80, 0.75)';
+        ctx.strokeText(symbol, 0, 0);
+
+        // Layer 3: Main Core Fill Text
+        ctx.fillStyle = fillColor;
         ctx.fillText(symbol, 0, 0);
+
         ctx.restore();
     }
 
@@ -221,8 +233,8 @@ function initHeroCanvas() {
             }
         }
 
-        // 2. Ambient background glitches (runs constantly at rest)
-        if (Math.random() < 0.22) { // ~13 ambient glitch triggers per second
+        // 2. Ambient background glitches
+        if (Math.random() < 0.22) {
             const sliceY = Math.random() * height;
             const sliceH = 8 + Math.random() * 20;
             const shiftX = (Math.random() - 0.5) * (Math.random() < 0.3 ? 24 : 12);
@@ -243,7 +255,7 @@ function initHeroCanvas() {
                 }
             }
 
-            // Occasional micro jitter per individual node
+            // Occasional micro jitter
             let microJitterX = 0;
             if (Math.random() < 0.003) {
                 microJitterX = (Math.random() - 0.5) * 8;
@@ -302,77 +314,42 @@ function initHeroCanvas() {
             const streak = Math.min(absScrollVel * 0.2, 5);
             const isGlitched = Math.abs(glitchX) > 0.5 || Math.abs(microJitterX) > 0.5;
 
-            if (p.symbol === "V") {
-                // Persistent Red Glow & Core for 'V'
-                if (displacement < 0.3 && streak < 0.3 && !isGlitched) {
-                    // Outer subtle red bloom
-                    drawSymbolNode(renderX, renderY, p.symbol, 'rgba(255, 30, 80, 0.25)', 0);
-                    // Core vibrant neon red
-                    drawSymbolNode(renderX, renderY, p.symbol, 'rgba(255, 45, 90, 0.95)', 0);
-                } else {
-                    const redAlpha = isGlitched ? 1.0 : (0.75 + activity * 0.25);
-                    const cyanAlpha = isGlitched ? 0.75 : (0.25 + activity * 0.50);
-
-                    // Red Channel offset
-                    drawSymbolNode(
-                        renderX - splitOffset,
-                        renderY - splitOffset * 0.4,
-                        p.symbol,
-                        `rgba(255, 20, 75, ${redAlpha})`,
-                        streak
-                    );
-
-                    // Secondary Cyan offset
-                    drawSymbolNode(
-                        renderX + splitOffset,
-                        renderY + splitOffset * 0.4,
-                        p.symbol,
-                        `rgba(0, 240, 255, ${cyanAlpha})`,
-                        streak
-                    );
-
-                    // Vibrant Red Core
-                    drawSymbolNode(
-                        renderX,
-                        renderY,
-                        p.symbol,
-                        'rgba(255, 50, 100, 0.95)',
-                        streak * 0.2
-                    );
-                }
+            // Render both 'V' and '—' with Holographic Red styling
+            if (displacement < 0.3 && streak < 0.3 && !isGlitched) {
+                // Subtle Red Ambient Bloom Base
+                drawHoloSymbol(renderX, renderY, p.symbol, 'rgba(255, 30, 80, 0.25)', 0);
+                // Core Neon Red Hologram
+                drawHoloSymbol(renderX, renderY, p.symbol, 'rgba(255, 55, 95, 0.90)', 0);
             } else {
-                // Standard rendering for em-dash '—'
-                if (displacement < 0.3 && streak < 0.3 && !isGlitched) {
-                    drawSymbolNode(renderX, renderY, p.symbol, 'rgba(180, 245, 255, 0.38)', 0);
-                } else {
-                    const redAlpha = isGlitched ? 0.85 : (0.35 + activity * 0.55);
-                    const cyanAlpha = isGlitched ? 0.85 : (0.35 + activity * 0.55);
-                    const coreAlpha = 0.45 + activity * 0.55;
+                const redAlpha = isGlitched ? 1.0 : (0.75 + activity * 0.25);
+                const cyanAlpha = isGlitched ? 0.85 : (0.35 + activity * 0.50);
 
-                    drawSymbolNode(
-                        renderX - splitOffset,
-                        renderY - splitOffset * 0.4,
-                        p.symbol,
-                        `rgba(255, 30, 90, ${redAlpha})`,
-                        streak
-                    );
+                // Chromatic Split - Red Channel
+                drawHoloSymbol(
+                    renderX - splitOffset,
+                    renderY - splitOffset * 0.4,
+                    p.symbol,
+                    `rgba(255, 20, 75, ${redAlpha})`,
+                    streak
+                );
 
-                    drawSymbolNode(
-                        renderX + splitOffset,
-                        renderY + splitOffset * 0.4,
-                        p.symbol,
-                        `rgba(0, 240, 255, ${cyanAlpha})`,
-                        streak
-                    );
+                // Chromatic Split - Cyan Channel
+                drawHoloSymbol(
+                    renderX + splitOffset,
+                    renderY + splitOffset * 0.4,
+                    p.symbol,
+                    `rgba(0, 240, 255, ${cyanAlpha})`,
+                    streak
+                );
 
-                    drawSymbolNode(
-                        renderX,
-                        renderY,
-                        p.symbol,
-                        `rgba(255, 255, 255, ${coreAlpha})`,
-                        streak * 0.2
-                    );
-                }
+                // Core White/Red Glitch Highlight
+                drawHoloSymbol(
+                    renderX,
+                    renderY,
+                    p.symbol,
+                    `rgba(255, 230, 240, ${0.60 + activity * 0.40})`,
+                    streak * 0.2
+                );
             }
         }
 
