@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC FIELD (3D HOLOGRAPHIC RED SYMBOLS)
+// 4. GENERATIVE KINETIC FIELD (SUBTLE HOLOGRAPHIC RED SYMBOLS)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -175,7 +175,7 @@ function initHeroCanvas() {
 
     resize();
 
-    // 3D Holographic Rendering Engine
+    // Softened 3D Holographic Rendering Engine
     function drawHoloSymbol(x, y, symbol, fillColor, streak = 0) {
         ctx.save();
         ctx.translate(x, y);
@@ -184,13 +184,13 @@ function initHeroCanvas() {
             ctx.scale(1, 1 + streak * 0.15);
         }
 
-        // Layer 1: Holographic Offset Outline (Cyan Edge for 3D depth)
-        ctx.lineWidth = 1.6;
-        ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
-        ctx.strokeText(symbol, 0.8, -0.6);
+        // Layer 1: Holographic Offset Outline (Subtle Cyan Edge)
+        ctx.lineWidth = 1.0;
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.20)';
+        ctx.strokeText(symbol, 0.5, -0.4);
 
         // Layer 2: Main Holographic Red Outline Border
-        ctx.strokeStyle = 'rgba(255, 30, 80, 0.75)';
+        ctx.strokeStyle = 'rgba(255, 30, 80, 0.35)';
         ctx.strokeText(symbol, 0, 0);
 
         // Layer 3: Main Core Fill Text
@@ -234,10 +234,10 @@ function initHeroCanvas() {
         }
 
         // 2. Ambient background glitches
-        if (Math.random() < 0.22) {
+        if (Math.random() < 0.18) {
             const sliceY = Math.random() * height;
             const sliceH = 8 + Math.random() * 20;
-            const shiftX = (Math.random() - 0.5) * (Math.random() < 0.3 ? 24 : 12);
+            const shiftX = (Math.random() - 0.5) * (Math.random() < 0.3 ? 18 : 8);
             activeGlitches.push({ minY: sliceY, maxY: sliceY + sliceH, shiftX });
         }
 
@@ -257,8 +257,8 @@ function initHeroCanvas() {
 
             // Occasional micro jitter
             let microJitterX = 0;
-            if (Math.random() < 0.003) {
-                microJitterX = (Math.random() - 0.5) * 8;
+            if (Math.random() < 0.002) {
+                microJitterX = (Math.random() - 0.5) * 6;
             }
 
             // Background scroll wave
@@ -310,19 +310,20 @@ function initHeroCanvas() {
             const displacement = Math.hypot(p.x - p.baseX, p.y - p.baseY);
             const activity = Math.min(displacement / 18, 1.0);
 
-            const splitOffset = Math.min(displacement * 0.4 + absScrollVel * 0.08, 10);
+            // Tighter chromatic aberration split (max 5.5px)
+            const splitOffset = Math.min(displacement * 0.22 + absScrollVel * 0.05, 5.5);
             const streak = Math.min(absScrollVel * 0.2, 5);
             const isGlitched = Math.abs(glitchX) > 0.5 || Math.abs(microJitterX) > 0.5;
 
-            // Render both 'V' and '—' with Holographic Red styling
+            // Softened Holographic Red rendering
             if (displacement < 0.3 && streak < 0.3 && !isGlitched) {
                 // Subtle Red Ambient Bloom Base
-                drawHoloSymbol(renderX, renderY, p.symbol, 'rgba(255, 30, 80, 0.25)', 0);
-                // Core Neon Red Hologram
-                drawHoloSymbol(renderX, renderY, p.symbol, 'rgba(255, 55, 95, 0.90)', 0);
+                drawHoloSymbol(renderX, renderY, p.symbol, 'rgba(255, 30, 80, 0.10)', 0);
+                // Core Hologram - Toned down opacity for clean background contrast
+                drawHoloSymbol(renderX, renderY, p.symbol, 'rgba(255, 55, 95, 0.38)', 0);
             } else {
-                const redAlpha = isGlitched ? 1.0 : (0.75 + activity * 0.25);
-                const cyanAlpha = isGlitched ? 0.85 : (0.35 + activity * 0.50);
+                const redAlpha = isGlitched ? 0.70 : (0.35 + activity * 0.35);
+                const cyanAlpha = isGlitched ? 0.50 : (0.18 + activity * 0.32);
 
                 // Chromatic Split - Red Channel
                 drawHoloSymbol(
@@ -342,12 +343,12 @@ function initHeroCanvas() {
                     streak
                 );
 
-                // Core White/Red Glitch Highlight
+                // Core Highlight
                 drawHoloSymbol(
                     renderX,
                     renderY,
                     p.symbol,
-                    `rgba(255, 230, 240, ${0.60 + activity * 0.40})`,
+                    `rgba(255, 230, 240, ${0.30 + activity * 0.45})`,
                     streak * 0.2
                 );
             }
