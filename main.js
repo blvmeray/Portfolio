@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC RGB FIELD (V & — SYMBOLS)
+// 4. GENERATIVE KINETIC FIELD (ALWAYS-RED 'V' + AMBIENT GLITCH)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -205,8 +205,10 @@ function initHeroCanvas() {
         mouse.vy *= 0.85;
         const mouseSpeed = Math.hypot(mouse.vx, mouse.vy);
 
-        // Scanline glitch slices during scroll
+        // Active scanline glitch collection
         const activeGlitches = [];
+
+        // 1. Scroll-driven scanline glitches
         if (absScrollVel > 1.2) {
             const glitchCount = Math.min(Math.floor(absScrollVel * 0.25), 4);
             for (let g = 0; g < glitchCount; g++) {
@@ -219,12 +221,20 @@ function initHeroCanvas() {
             }
         }
 
+        // 2. Ambient background glitches (runs constantly at rest)
+        if (Math.random() < 0.22) { // ~13 ambient glitch triggers per second
+            const sliceY = Math.random() * height;
+            const sliceH = 8 + Math.random() * 20;
+            const shiftX = (Math.random() - 0.5) * (Math.random() < 0.3 ? 24 : 12);
+            activeGlitches.push({ minY: sliceY, maxY: sliceY + sliceH, shiftX });
+        }
+
         const hoverRadius = 240;
 
         for (let i = 0; i < grid.length; i++) {
             const p = grid[i];
 
-            // 1. Scanline glitch displacement
+            // Scanline glitch displacement
             let glitchX = 0;
             for (let g = 0; g < activeGlitches.length; g++) {
                 if (p.y >= activeGlitches[g].minY && p.y <= activeGlitches[g].maxY) {
@@ -233,10 +243,16 @@ function initHeroCanvas() {
                 }
             }
 
-            // 2. Background scroll wave
+            // Occasional micro jitter per individual node
+            let microJitterX = 0;
+            if (Math.random() < 0.003) {
+                microJitterX = (Math.random() - 0.5) * 8;
+            }
+
+            // Background scroll wave
             p.vy -= scrollVelocity * 0.02;
 
-            // 3. Cursor attraction + slow rotational vortex force when cursor moves
+            // Cursor attraction + rotational vortex force
             const dx = mouse.x - p.x;
             const dy = mouse.y - p.y;
             const dist = Math.hypot(dx, dy);
@@ -252,7 +268,7 @@ function initHeroCanvas() {
                 p.vx -= Math.cos(angle) * impulse;
                 p.vy -= Math.sin(angle) * impulse;
 
-                // Rotational vortex spin when mouse moves
+                // Rotational vortex spin
                 if (mouseSpeed > 0.1) {
                     const spinFactor = smoothFactor * Math.min(mouseSpeed * 0.08, 2.5);
                     const tangentAngle = angle + Math.PI / 2;
@@ -276,7 +292,7 @@ function initHeroCanvas() {
             p.x += p.vx;
             p.y += p.vy;
 
-            const renderX = p.x + glitchX;
+            const renderX = p.x + glitchX + microJitterX;
             const renderY = p.y;
 
             const displacement = Math.hypot(p.x - p.baseX, p.y - p.baseY);
@@ -284,42 +300,79 @@ function initHeroCanvas() {
 
             const splitOffset = Math.min(displacement * 0.4 + absScrollVel * 0.08, 10);
             const streak = Math.min(absScrollVel * 0.2, 5);
+            const isGlitched = Math.abs(glitchX) > 0.5 || Math.abs(microJitterX) > 0.5;
 
-            // Vibrant, high-saturation color palette
-            if (displacement < 0.3 && streak < 0.3 && Math.abs(glitchX) < 0.5) {
-                drawSymbolNode(renderX, renderY, p.symbol, 'rgba(180, 245, 255, 0.38)', 0);
+            if (p.symbol === "V") {
+                // Persistent Red Glow & Core for 'V'
+                if (displacement < 0.3 && streak < 0.3 && !isGlitched) {
+                    // Outer subtle red bloom
+                    drawSymbolNode(renderX, renderY, p.symbol, 'rgba(255, 30, 80, 0.25)', 0);
+                    // Core vibrant neon red
+                    drawSymbolNode(renderX, renderY, p.symbol, 'rgba(255, 45, 90, 0.95)', 0);
+                } else {
+                    const redAlpha = isGlitched ? 1.0 : (0.75 + activity * 0.25);
+                    const cyanAlpha = isGlitched ? 0.75 : (0.25 + activity * 0.50);
+
+                    // Red Channel offset
+                    drawSymbolNode(
+                        renderX - splitOffset,
+                        renderY - splitOffset * 0.4,
+                        p.symbol,
+                        `rgba(255, 20, 75, ${redAlpha})`,
+                        streak
+                    );
+
+                    // Secondary Cyan offset
+                    drawSymbolNode(
+                        renderX + splitOffset,
+                        renderY + splitOffset * 0.4,
+                        p.symbol,
+                        `rgba(0, 240, 255, ${cyanAlpha})`,
+                        streak
+                    );
+
+                    // Vibrant Red Core
+                    drawSymbolNode(
+                        renderX,
+                        renderY,
+                        p.symbol,
+                        'rgba(255, 50, 100, 0.95)',
+                        streak * 0.2
+                    );
+                }
             } else {
-                const isGlitched = Math.abs(glitchX) > 0.5;
-                const redAlpha = isGlitched ? 0.85 : (0.35 + activity * 0.55);
-                const cyanAlpha = isGlitched ? 0.85 : (0.35 + activity * 0.55);
-                const coreAlpha = 0.45 + activity * 0.55;
+                // Standard rendering for em-dash '—'
+                if (displacement < 0.3 && streak < 0.3 && !isGlitched) {
+                    drawSymbolNode(renderX, renderY, p.symbol, 'rgba(180, 245, 255, 0.38)', 0);
+                } else {
+                    const redAlpha = isGlitched ? 0.85 : (0.35 + activity * 0.55);
+                    const cyanAlpha = isGlitched ? 0.85 : (0.35 + activity * 0.55);
+                    const coreAlpha = 0.45 + activity * 0.55;
 
-                // RED Channel
-                drawSymbolNode(
-                    renderX - splitOffset,
-                    renderY - splitOffset * 0.4,
-                    p.symbol,
-                    `rgba(255, 30, 90, ${redAlpha})`,
-                    streak
-                );
+                    drawSymbolNode(
+                        renderX - splitOffset,
+                        renderY - splitOffset * 0.4,
+                        p.symbol,
+                        `rgba(255, 30, 90, ${redAlpha})`,
+                        streak
+                    );
 
-                // CYAN Channel
-                drawSymbolNode(
-                    renderX + splitOffset,
-                    renderY + splitOffset * 0.4,
-                    p.symbol,
-                    `rgba(0, 240, 255, ${cyanAlpha})`,
-                    streak
-                );
+                    drawSymbolNode(
+                        renderX + splitOffset,
+                        renderY + splitOffset * 0.4,
+                        p.symbol,
+                        `rgba(0, 240, 255, ${cyanAlpha})`,
+                        streak
+                    );
 
-                // WHITE Core
-                drawSymbolNode(
-                    renderX,
-                    renderY,
-                    p.symbol,
-                    `rgba(255, 255, 255, ${coreAlpha})`,
-                    streak * 0.2
-                );
+                    drawSymbolNode(
+                        renderX,
+                        renderY,
+                        p.symbol,
+                        `rgba(255, 255, 255, ${coreAlpha})`,
+                        streak * 0.2
+                    );
+                }
             }
         }
 
