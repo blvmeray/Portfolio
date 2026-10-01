@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC FIELD (HIGH-INTENSITY ABERRATION & 0.50 DASH OPACITY)
+// 4. GENERATIVE KINETIC FIELD (0.75 DASH OPACITY & TARGETED ABERRATION)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -125,7 +125,7 @@ function initHeroCanvas() {
                     vx: 0,
                     vy: 0,
                     symbol: (c + r) % 3 === 0 ? "V" : "—",
-                    seed: (c * 73 + r * 149) % 1000,
+                    seed: (c * 137 + r * 283) % 1000,
                     sparkleGlow: 0
                 });
             }
@@ -194,7 +194,7 @@ function initHeroCanvas() {
         mouse.vy *= 0.85;
         const mouseSpeed = Math.hypot(mouse.vx, mouse.vy);
 
-        const time = Date.now() * 0.0012;
+        const time = Date.now() * 0.0010;
 
         // Scanline glitch slices
         const activeGlitches = [];
@@ -212,23 +212,24 @@ function initHeroCanvas() {
 
         const hoverRadius = 240;
 
-        // Pass 1: Compute sparse fairy light sparkle
+        // Pass 1: Compute ultra-sparse fairy light sparkle
         for (let i = 0; i < grid.length; i++) {
             const p = grid[i];
             p.sparkleGlow = 0;
 
             if (p.symbol === "V") {
-                const t1 = time * 1.3 + p.seed * 0.17;
-                const t2 = time * 0.7 + p.seed * 0.31;
+                const t1 = time * 1.1 + p.seed * 0.23;
+                const t2 = time * 0.5 + p.seed * 0.41;
                 const wave = Math.sin(t1) * Math.cos(t2);
 
-                if (wave > 0.72) {
-                    p.sparkleGlow = Math.pow((wave - 0.72) / 0.28, 1.8);
+                // Raised threshold (> 0.88) makes sparkles rare and delicate
+                if (wave > 0.88) {
+                    p.sparkleGlow = Math.pow((wave - 0.88) / 0.12, 2.2);
                 }
             }
         }
 
-        // Pass 2: Main physics & render loop
+        // Pass 2: Physics simulation & rendering
         for (let i = 0; i < grid.length; i++) {
             const p = grid[i];
 
@@ -289,46 +290,39 @@ function initHeroCanvas() {
             const isNearCursor = dist < hoverRadius;
 
             if (p.symbol === "V") {
+                // 'V' SYMBOLS: CLEAN NEON RED (NO CHROMATIC ABERRATION SPLIT)
                 const renderX = p.x + glitchX;
                 const renderY = p.y;
 
                 if (isNearCursor || activity > 0.05) {
-                    // Hover/Kinetic State with Enhanced Chromatic Aberration
                     const normDist = isNearCursor ? dist / hoverRadius : 1.0;
                     const proximity = isNearCursor ? Math.pow(1 - normDist, 2) : 0;
                     const intensity = Math.max(proximity, activity);
 
-                    // Increased channel offset spread (up to 8.0px)
-                    const splitOffset = Math.min(displacement * 0.35 + absScrollVel * 0.08 + proximity * 5.0, 8.0);
+                    // Soft ambient red glow
+                    ctx.fillStyle = `rgba(255, 30, 80, ${0.25 + intensity * 0.45})`;
+                    ctx.fillText(p.symbol, renderX, renderY);
 
-                    // Cyan Offset Channel
-                    ctx.fillStyle = `rgba(0, 240, 255, ${0.30 + intensity * 0.55})`;
-                    ctx.fillText(p.symbol, renderX + splitOffset, renderY + splitOffset * 0.3);
-
-                    // Red Offset Channel
-                    ctx.fillStyle = `rgba(255, 30, 80, ${0.40 + intensity * 0.55})`;
-                    ctx.fillText(p.symbol, renderX - splitOffset, renderY - splitOffset * 0.3);
-
-                    // Core Neon Pink/Red Text
+                    // Core bright neon red
                     ctx.fillStyle = `rgba(255, 60, 110, ${0.60 + intensity * 0.40})`;
                     ctx.fillText(p.symbol, renderX, renderY);
 
                 } else if (p.sparkleGlow > 0) {
-                    // Sparse Fairy Light Twinkle
-                    ctx.fillStyle = `rgba(255, 40, 90, ${0.15 + p.sparkleGlow * 0.35})`;
-                    ctx.fillText(p.symbol, renderX - 0.8, renderY);
+                    // Ultra-sparse fairy light sparkle
+                    ctx.fillStyle = `rgba(255, 50, 90, ${0.20 + p.sparkleGlow * 0.40})`;
+                    ctx.fillText(p.symbol, renderX, renderY);
 
-                    ctx.fillStyle = `rgba(255, 120, 150, ${0.35 + p.sparkleGlow * 0.65})`;
+                    ctx.fillStyle = `rgba(255, 140, 170, ${0.40 + p.sparkleGlow * 0.60})`;
                     ctx.fillText(p.symbol, renderX, renderY);
 
                 } else {
-                    // Clean Idle 'V'
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.20)';
+                    // Clean idle 'V'
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
                     ctx.fillText(p.symbol, renderX, renderY);
                 }
 
             } else {
-                // '—' (EM DASH) - BASE OPACITY SET TO 0.50 + UPGRADED CHROMATIC ABERRATION
+                // '—' (EM DASH) - BASE OPACITY 0.75 + EXCLUSIVE CHROMATIC ABERRATION
 
                 // Check 4 adjacent neighbors for sparkling 'V'
                 let neighborSparkle = 0;
@@ -350,54 +344,54 @@ function initHeroCanvas() {
 
                 let dashGlitchX = 0;
                 if (neighborSparkle > 0.05) {
-                    dashGlitchX = (Math.random() - 0.5) * (4.5 * neighborSparkle);
+                    dashGlitchX = (Math.random() - 0.5) * (5.0 * neighborSparkle);
                 }
 
                 const renderX = p.x + glitchX + dashGlitchX;
                 const renderY = p.y;
 
                 if (isNearCursor) {
-                    // High-Contrast Cursor Hover Aberration
+                    // High-Contrast Cursor Hover Aberration on Em Dashes
                     const normDist = dist / hoverRadius;
                     const proximity = Math.pow(1 - normDist, 2);
                     const splitOffset = Math.min(displacement * 0.35 + absScrollVel * 0.08 + proximity * 6.0, 9.0);
 
-                    // Cyan Offset
-                    ctx.fillStyle = `rgba(0, 240, 255, ${0.45 + proximity * 0.50})`;
+                    // Cyan Offset Channel
+                    ctx.fillStyle = `rgba(0, 240, 255, ${0.55 + proximity * 0.45})`;
                     ctx.fillText(p.symbol, renderX + splitOffset, renderY + splitOffset * 0.3);
 
-                    // Red Offset
-                    ctx.fillStyle = `rgba(255, 30, 80, ${0.45 + proximity * 0.50})`;
+                    // Red Offset Channel
+                    ctx.fillStyle = `rgba(255, 30, 80, ${0.55 + proximity * 0.45})`;
                     ctx.fillText(p.symbol, renderX - splitOffset, renderY - splitOffset * 0.3);
 
                     // Core White Text
-                    ctx.fillStyle = `rgba(255, 255, 255, ${0.70 + proximity * 0.30})`;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.85 + proximity * 0.15})`;
                     ctx.fillText(p.symbol, renderX, renderY);
 
                 } else if (neighborSparkle > 0.05) {
-                    // Enhanced Sympathetic Aberration + Glitch when neighbor 'V' sparkles
+                    // Sympathetic Aberration + Glitch when neighbor 'V' sparkles
                     const splitOffset = 4.5 * neighborSparkle;
 
                     // Cyan channel split
-                    ctx.fillStyle = `rgba(0, 240, 255, ${0.50 * neighborSparkle})`;
+                    ctx.fillStyle = `rgba(0, 240, 255, ${0.60 * neighborSparkle})`;
                     ctx.fillText(p.symbol, renderX + splitOffset, renderY);
 
                     // Red channel split
-                    ctx.fillStyle = `rgba(255, 30, 80, ${0.60 * neighborSparkle})`;
+                    ctx.fillStyle = `rgba(255, 30, 80, ${0.70 * neighborSparkle})`;
                     ctx.fillText(p.symbol, renderX - splitOffset, renderY);
 
                     // Core text
-                    ctx.fillStyle = `rgba(255, 255, 255, ${0.50 + neighborSparkle * 0.40})`;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.75 + neighborSparkle * 0.25})`;
                     ctx.fillText(p.symbol, renderX, renderY);
 
                 } else if (activity > 0.05) {
                     // Kinetic Trail state
-                    ctx.fillStyle = `rgba(255, 255, 255, ${0.50 + activity * 0.40})`;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.75 + activity * 0.25})`;
                     ctx.fillText(p.symbol, renderX, renderY);
 
                 } else {
-                    // Idle state set to 0.50 Opacity
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.50)';
+                    // Base Opacity set to 0.75
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
                     ctx.fillText(p.symbol, renderX, renderY);
                 }
             }
