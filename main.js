@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC FIELD (SUBTLE HOLOGRAPHIC RED SYMBOLS)
+// 4. GENERATIVE KINETIC FIELD (FLAT HIGH-FPS + RED CURSOR GLOW)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -175,36 +175,11 @@ function initHeroCanvas() {
 
     resize();
 
-    // Softened 3D Holographic Rendering Engine
-    function drawHoloSymbol(x, y, symbol, fillColor, streak = 0) {
-        ctx.save();
-        ctx.translate(x, y);
-
-        if (streak > 0) {
-            ctx.scale(1, 1 + streak * 0.15);
-        }
-
-        // Layer 1: Holographic Offset Outline (Subtle Cyan Edge)
-        ctx.lineWidth = 1.0;
-        ctx.strokeStyle = 'rgba(0, 240, 255, 0.20)';
-        ctx.strokeText(symbol, 0.5, -0.4);
-
-        // Layer 2: Main Holographic Red Outline Border
-        ctx.strokeStyle = 'rgba(255, 30, 80, 0.35)';
-        ctx.strokeText(symbol, 0, 0);
-
-        // Layer 3: Main Core Fill Text
-        ctx.fillStyle = fillColor;
-        ctx.fillText(symbol, 0, 0);
-
-        ctx.restore();
-    }
-
     function animate() {
         ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, width, height);
 
-        // Pre-configure static text properties once per frame for max performance
+        // Pre-configure text rendering defaults once per frame for 60 FPS
         ctx.font = '700 12px "Space Mono", monospace, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -212,15 +187,14 @@ function initHeroCanvas() {
         scrollVelocity *= 0.80;
         const absScrollVel = Math.abs(scrollVelocity);
 
-        // Smoothly decay mouse movement velocity
+        // Decay mouse velocity
         mouse.vx *= 0.85;
         mouse.vy *= 0.85;
         const mouseSpeed = Math.hypot(mouse.vx, mouse.vy);
 
-        // Active scanline glitch collection
+        // Scanline glitch slices
         const activeGlitches = [];
 
-        // 1. Scroll-driven scanline glitches
         if (absScrollVel > 1.2) {
             const glitchCount = Math.min(Math.floor(absScrollVel * 0.25), 4);
             for (let g = 0; g < glitchCount; g++) {
@@ -233,11 +207,11 @@ function initHeroCanvas() {
             }
         }
 
-        // 2. Ambient background glitches
-        if (Math.random() < 0.18) {
+        // Ambient background glitches
+        if (Math.random() < 0.15) {
             const sliceY = Math.random() * height;
             const sliceH = 8 + Math.random() * 20;
-            const shiftX = (Math.random() - 0.5) * (Math.random() < 0.3 ? 18 : 8);
+            const shiftX = (Math.random() - 0.5) * (Math.random() < 0.3 ? 16 : 6);
             activeGlitches.push({ minY: sliceY, maxY: sliceY + sliceH, shiftX });
         }
 
@@ -308,49 +282,45 @@ function initHeroCanvas() {
             const renderY = p.y;
 
             const displacement = Math.hypot(p.x - p.baseX, p.y - p.baseY);
-            const activity = Math.min(displacement / 18, 1.0);
-
-            // Tighter chromatic aberration split (max 5.5px)
-            const splitOffset = Math.min(displacement * 0.22 + absScrollVel * 0.05, 5.5);
-            const streak = Math.min(absScrollVel * 0.2, 5);
             const isGlitched = Math.abs(glitchX) > 0.5 || Math.abs(microJitterX) > 0.5;
+            const isNearCursor = dist < hoverRadius;
 
-            // Softened Holographic Red rendering
-            if (displacement < 0.3 && streak < 0.3 && !isGlitched) {
-                // Subtle Red Ambient Bloom Base
-                drawHoloSymbol(renderX, renderY, p.symbol, 'rgba(255, 30, 80, 0.10)', 0);
-                // Core Hologram - Toned down opacity for clean background contrast
-                drawHoloSymbol(renderX, renderY, p.symbol, 'rgba(255, 55, 95, 0.38)', 0);
+            if (isNearCursor) {
+                const normDist = dist / hoverRadius;
+                const proximity = Math.pow(1 - normDist, 2); // Intensity scales closer to mouse
+                const splitOffset = Math.min(displacement * 0.22 + absScrollVel * 0.05, 4.5);
+
+                // Soft Ambient Red Glow Layer
+                ctx.fillStyle = `rgba(255, 20, 70, ${0.12 + proximity * 0.35})`;
+                ctx.fillText(p.symbol, renderX - splitOffset * 0.4, renderY - splitOffset * 0.2);
+
+                // Slight Cyan Accent on high displacement
+                if (splitOffset > 0.8) {
+                    ctx.fillStyle = `rgba(0, 240, 255, ${proximity * 0.35})`;
+                    ctx.fillText(p.symbol, renderX + splitOffset, renderY + splitOffset * 0.4);
+                }
+
+                // Core Vibrant Neon Red Under Cursor
+                ctx.fillStyle = `rgba(255, 45, 85, ${0.35 + proximity * 0.65})`;
+                ctx.fillText(p.symbol, renderX, renderY);
+
+            } else if (displacement > 0.3 || isGlitched) {
+                // Active Displacement / Scroll / Glitch state
+                const activity = Math.min(displacement / 18, 1.0);
+                const splitOffset = Math.min(displacement * 0.2 + absScrollVel * 0.05, 4.0);
+
+                // Subtle Red split
+                ctx.fillStyle = `rgba(255, 30, 80, ${0.20 + activity * 0.35})`;
+                ctx.fillText(p.symbol, renderX - splitOffset, renderY);
+
+                // Core highlight
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.18 + activity * 0.45})`;
+                ctx.fillText(p.symbol, renderX, renderY);
+
             } else {
-                const redAlpha = isGlitched ? 0.70 : (0.35 + activity * 0.35);
-                const cyanAlpha = isGlitched ? 0.50 : (0.18 + activity * 0.32);
-
-                // Chromatic Split - Red Channel
-                drawHoloSymbol(
-                    renderX - splitOffset,
-                    renderY - splitOffset * 0.4,
-                    p.symbol,
-                    `rgba(255, 20, 75, ${redAlpha})`,
-                    streak
-                );
-
-                // Chromatic Split - Cyan Channel
-                drawHoloSymbol(
-                    renderX + splitOffset,
-                    renderY + splitOffset * 0.4,
-                    p.symbol,
-                    `rgba(0, 240, 255, ${cyanAlpha})`,
-                    streak
-                );
-
-                // Core Highlight
-                drawHoloSymbol(
-                    renderX,
-                    renderY,
-                    p.symbol,
-                    `rgba(255, 230, 240, ${0.30 + activity * 0.45})`,
-                    streak * 0.2
-                );
+                // Pure Idle State: Clean, low-opacity flat symbols
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+                ctx.fillText(p.symbol, renderX, renderY);
             }
         }
 
