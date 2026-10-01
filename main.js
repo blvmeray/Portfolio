@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC FIELD (PSEUDO-RANDOM 'V' SPARKLE)
+// 4. GENERATIVE KINETIC FIELD (FAIRY LIGHTS & REACTIVE DASHES)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -102,6 +102,7 @@ function initHeroCanvas() {
 
     let width, height;
     let grid = [];
+    let cols = 0, rows = 0;
     const spacing = 36;
 
     const mouse = { x: -1000, y: -1000, vx: 0, vy: 0, lastX: -1000, lastY: -1000 };
@@ -110,12 +111,13 @@ function initHeroCanvas() {
 
     function buildGrid() {
         grid = [];
-        const cols = Math.ceil(width / spacing) + 1;
-        const rows = Math.ceil(height / spacing) + 1;
+        cols = Math.ceil(width / spacing) + 1;
+        rows = Math.ceil(height / spacing) + 1;
 
         for (let r = 0; r < rows; r++) {
             for (let c = 0; c < cols; c++) {
                 grid.push({
+                    r, c,
                     baseX: c * spacing,
                     baseY: r * spacing,
                     x: c * spacing,
@@ -123,8 +125,9 @@ function initHeroCanvas() {
                     vx: 0,
                     vy: 0,
                     symbol: (c + r) % 3 === 0 ? "V" : "—",
-                    // Static deterministic seed per grid cell for pseudo-random sparkle phase
-                    seed: (c * 17 + r * 31) % 100
+                    // Large prime seed distribution for sparse, non-repeating twinkle
+                    seed: (c * 73 + r * 149) % 1000,
+                    sparkleGlow: 0
                 });
             }
         }
@@ -192,7 +195,7 @@ function initHeroCanvas() {
         mouse.vy *= 0.85;
         const mouseSpeed = Math.hypot(mouse.vx, mouse.vy);
 
-        const time = Date.now() * 0.0015;
+        const time = Date.now() * 0.0012;
 
         // Scanline glitch slices
         const activeGlitches = [];
@@ -210,6 +213,24 @@ function initHeroCanvas() {
 
         const hoverRadius = 240;
 
+        // Pass 1: Compute sparse "fairy light" sparkle glow for "V" nodes
+        for (let i = 0; i < grid.length; i++) {
+            const p = grid[i];
+            p.sparkleGlow = 0;
+
+            if (p.symbol === "V") {
+                const t1 = time * 1.3 + p.seed * 0.17;
+                const t2 = time * 0.7 + p.seed * 0.31;
+                const wave = Math.sin(t1) * Math.cos(t2);
+
+                // High threshold (> 0.72) yields rare, gentle fairy-light flickers
+                if (wave > 0.72) {
+                    p.sparkleGlow = Math.pow((wave - 0.72) / 0.28, 1.8);
+                }
+            }
+        }
+
+        // Pass 2: Main physics simulation & rendering
         for (let i = 0; i < grid.length; i++) {
             const p = grid[i];
 
@@ -219,15 +240,6 @@ function initHeroCanvas() {
                 if (p.y >= activeGlitches[g].minY && p.y <= activeGlitches[g].maxY) {
                     glitchX = activeGlitches[g].shiftX;
                     break;
-                }
-            }
-
-            // 2. Pseudo-random Sparkle Math for "V" symbols (No directional movement)
-            let sparkleGlow = 0;
-            if (p.symbol === "V") {
-                const wave = Math.sin(time * 2.2 + p.seed * 3.7) * Math.cos(time * 1.3 + p.seed * 1.9);
-                if (wave > 0.45) {
-                    sparkleGlow = (wave - 0.45) / 0.55; // Intensity from 0 to 1
                 }
             }
 
@@ -274,16 +286,16 @@ function initHeroCanvas() {
             p.x += p.vx;
             p.y += p.vy;
 
-            const renderX = p.x + glitchX;
-            const renderY = p.y;
-
             const displacement = Math.hypot(p.x - p.baseX, p.y - p.baseY);
-            const activity = Math.min(displacement / 16, 1.0); // Kinetic trail intensity
+            const activity = Math.min(displacement / 16, 1.0);
             const isNearCursor = dist < hoverRadius;
 
             if (p.symbol === "V") {
+                const renderX = p.x + glitchX;
+                const renderY = p.y;
+
                 if (isNearCursor || activity > 0.05) {
-                    // Active state: Under cursor or in physical trail
+                    // Hover/Trail State
                     const normDist = isNearCursor ? dist / hoverRadius : 1.0;
                     const proximity = isNearCursor ? Math.pow(1 - normDist, 2) : 0;
                     const intensity = Math.max(proximity, activity);
@@ -298,26 +310,92 @@ function initHeroCanvas() {
                     ctx.fillStyle = `rgba(255, 45, 90, ${0.40 + intensity * 0.60})`;
                     ctx.fillText(p.symbol, renderX, renderY);
 
-                } else if (sparkleGlow > 0) {
-                    // Scattered Sparkle Twinkle
-                    ctx.fillStyle = `rgba(255, 40, 90, ${0.10 + sparkleGlow * 0.25})`;
+                } else if (p.sparkleGlow > 0) {
+                    // Sparse Fairy Light Twinkle
+                    ctx.fillStyle = `rgba(255, 40, 90, ${0.12 + p.sparkleGlow * 0.30})`;
                     ctx.fillText(p.symbol, renderX - 0.5, renderY);
 
-                    ctx.fillStyle = `rgba(255, 80, 120, ${0.20 + sparkleGlow * 0.60})`;
+                    ctx.fillStyle = `rgba(255, 110, 140, ${0.30 + p.sparkleGlow * 0.65})`;
                     ctx.fillText(p.symbol, renderX, renderY);
 
                 } else {
                     // Clean Idle 'V'
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
                     ctx.fillText(p.symbol, renderX, renderY);
                 }
+
             } else {
-                // '—' (EM DASH) - STAYS MUTED / MONOCHROME
-                if (activity > 0.05) {
-                    ctx.fillStyle = `rgba(255, 255, 255, ${0.12 + activity * 0.35})`;
+                // '—' (EM DASH) - HIGHER OPERATING OPACITY + HOVER ABERRATION + SYMPATHETIC GLITCH
+                
+                // Check 4 adjacent neighbor cells to see if any nearby 'V' is sparkling
+                let neighborSparkle = 0;
+                const neighbors = [
+                    (p.r - 1) * cols + p.c,
+                    (p.r + 1) * cols + p.c,
+                    p.r * cols + (p.c - 1),
+                    p.r * cols + (p.c + 1)
+                ];
+
+                for (let n = 0; n < neighbors.length; n++) {
+                    const idx = neighbors[n];
+                    if (idx >= 0 && idx < grid.length) {
+                        if (grid[idx].symbol === "V" && grid[idx].sparkleGlow > neighborSparkle) {
+                            neighborSparkle = grid[idx].sparkleGlow;
+                        }
+                    }
+                }
+
+                let dashGlitchX = 0;
+                if (neighborSparkle > 0.05) {
+                    // Micro jitter glitch response when nearby 'V' sparkles
+                    dashGlitchX = (Math.random() - 0.5) * (3.5 * neighborSparkle);
+                }
+
+                const renderX = p.x + glitchX + dashGlitchX;
+                const renderY = p.y;
+
+                if (isNearCursor) {
+                    // Cursor Hover Chromatic Aberration for Em Dash
+                    const normDist = dist / hoverRadius;
+                    const proximity = Math.pow(1 - normDist, 2);
+                    const splitOffset = Math.min(displacement * 0.22 + absScrollVel * 0.05 + proximity * 3.5, 5.0);
+
+                    // Cyan Offset
+                    ctx.fillStyle = `rgba(0, 240, 255, ${0.25 + proximity * 0.45})`;
+                    ctx.fillText(p.symbol, renderX + splitOffset, renderY + splitOffset * 0.3);
+
+                    // Red Offset
+                    ctx.fillStyle = `rgba(255, 30, 80, ${0.25 + proximity * 0.45})`;
+                    ctx.fillText(p.symbol, renderX - splitOffset, renderY - splitOffset * 0.3);
+
+                    // Core Text
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.50 + proximity * 0.45})`;
                     ctx.fillText(p.symbol, renderX, renderY);
+
+                } else if (neighborSparkle > 0.05) {
+                    // Sympathetic Aberration + Glitch response when nearby 'V' sparkles
+                    const splitOffset = 2.0 * neighborSparkle;
+
+                    // Cyan channel split
+                    ctx.fillStyle = `rgba(0, 240, 255, ${0.25 * neighborSparkle})`;
+                    ctx.fillText(p.symbol, renderX + splitOffset, renderY);
+
+                    // Red channel split
+                    ctx.fillStyle = `rgba(255, 30, 80, ${0.35 * neighborSparkle})`;
+                    ctx.fillText(p.symbol, renderX - splitOffset, renderY);
+
+                    // Core text
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.28 + neighborSparkle * 0.35})`;
+                    ctx.fillText(p.symbol, renderX, renderY);
+
+                } else if (activity > 0.05) {
+                    // Kinetic Trail state
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.28 + activity * 0.45})`;
+                    ctx.fillText(p.symbol, renderX, renderY);
+
                 } else {
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+                    // Increased Idle Opacity (0.28)
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
                     ctx.fillText(p.symbol, renderX, renderY);
                 }
             }
