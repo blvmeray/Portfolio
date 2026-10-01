@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC FIELD (COMPOSITE "V" + "—" SYMBOL)
+// 4. GENERATIVE KINETIC FIELD (WIDE-WINGED CROSSBAR SYMBOL)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -176,10 +176,18 @@ function initHeroCanvas() {
 
     resize();
 
-    // Helper function to render the custom composite upside-down 'A' symbol
+    // Helper: Draws "V" and strokes a wide crossbar extending past both sides
     function drawCompositeSymbol(targetX, targetY) {
+        // Draw V base
         ctx.fillText("V", targetX, targetY);
-        ctx.fillText("—", targetX, targetY - 1); // Micro-offset vertically for perfect crossbar alignment
+
+        // Draw wide horizontal crossbar through V
+        ctx.strokeStyle = ctx.fillStyle;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(targetX - 7, targetY - 1);
+        ctx.lineTo(targetX + 7, targetY - 1);
+        ctx.stroke();
     }
 
     function animate() {
@@ -277,7 +285,7 @@ function initHeroCanvas() {
             const renderY = p.y;
 
             if (isNearCursor) {
-                // CURSOR HOVER: CHROMATIC ABERRATION SPLIT ON THE COMPOSITE SYMBOL
+                // CURSOR HOVER: CHROMATIC ABERRATION SPLIT ON THE WIDE-WINGED SYMBOL
                 const normDist = dist / hoverRadius;
                 const proximity = Math.pow(1 - normDist, 2);
 
