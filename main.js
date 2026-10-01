@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC RGB FIELD (VORTEX SWIRL + HIGH SATURATION)
+// 4. GENERATIVE KINETIC RGB FIELD (V & — SYMBOLS)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -122,8 +122,7 @@ function initHeroCanvas() {
                     y: r * spacing,
                     vx: 0,
                     vy: 0,
-                    size: (c % 2 === 0 && r % 2 === 0) ? 4 : 2,
-                    isCross: (c + r) % 3 === 0
+                    symbol: (c + r) % 3 === 0 ? "V" : "—"
                 });
             }
         }
@@ -176,30 +175,27 @@ function initHeroCanvas() {
 
     resize();
 
-    function drawNode(x, y, size, isCross, color, streak = 0) {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
+    function drawSymbolNode(x, y, symbol, color, streak = 0) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.fillStyle = color;
 
-        const topY = y - size - streak;
-        const bottomY = y + size + streak;
-
-        if (isCross) {
-            ctx.moveTo(x - size, y);
-            ctx.lineTo(x + size, y);
-            ctx.moveTo(x, topY);
-            ctx.lineTo(x, bottomY);
-        } else {
-            ctx.moveTo(x - size * 0.8, topY);
-            ctx.lineTo(x + size * 0.8, bottomY);
+        if (streak > 0) {
+            ctx.scale(1, 1 + streak * 0.15);
         }
 
-        ctx.stroke();
+        ctx.fillText(symbol, 0, 0);
+        ctx.restore();
     }
 
     function animate() {
         ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, width, height);
+
+        // Pre-configure static text properties once per frame for max performance
+        ctx.font = '700 12px "Space Mono", monospace, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
 
         scrollVelocity *= 0.80;
         const absScrollVel = Math.abs(scrollVelocity);
@@ -259,7 +255,7 @@ function initHeroCanvas() {
                 // Rotational vortex spin when mouse moves
                 if (mouseSpeed > 0.1) {
                     const spinFactor = smoothFactor * Math.min(mouseSpeed * 0.08, 2.5);
-                    const tangentAngle = angle + Math.PI / 2; // 90 degree perpendicular force
+                    const tangentAngle = angle + Math.PI / 2;
                     p.vx += Math.cos(tangentAngle) * spinFactor;
                     p.vy += Math.sin(tangentAngle) * spinFactor;
                 }
@@ -291,8 +287,7 @@ function initHeroCanvas() {
 
             // Vibrant, high-saturation color palette
             if (displacement < 0.3 && streak < 0.3 && Math.abs(glitchX) < 0.5) {
-                // Boosted idle pixel brightness & glow tone
-                drawNode(renderX, renderY, p.size, p.isCross, 'rgba(180, 245, 255, 0.38)', 0);
+                drawSymbolNode(renderX, renderY, p.symbol, 'rgba(180, 245, 255, 0.38)', 0);
             } else {
                 const isGlitched = Math.abs(glitchX) > 0.5;
                 const redAlpha = isGlitched ? 0.85 : (0.35 + activity * 0.55);
@@ -300,27 +295,31 @@ function initHeroCanvas() {
                 const coreAlpha = 0.45 + activity * 0.55;
 
                 // RED Channel
-                drawNode(
+                drawSymbolNode(
                     renderX - splitOffset,
                     renderY - splitOffset * 0.4,
-                    p.size + splitOffset * 0.1,
-                    p.isCross,
+                    p.symbol,
                     `rgba(255, 30, 90, ${redAlpha})`,
                     streak
                 );
 
                 // CYAN Channel
-                drawNode(
+                drawSymbolNode(
                     renderX + splitOffset,
                     renderY + splitOffset * 0.4,
-                    p.size + splitOffset * 0.1,
-                    p.isCross,
+                    p.symbol,
                     `rgba(0, 240, 255, ${cyanAlpha})`,
                     streak
                 );
 
                 // WHITE Core
-                drawNode(renderX, renderY, p.size, p.isCross, `rgba(255, 255, 255, ${coreAlpha})`, streak * 0.2);
+                drawSymbolNode(
+                    renderX,
+                    renderY,
+                    p.symbol,
+                    `rgba(255, 255, 255, ${coreAlpha})`,
+                    streak * 0.2
+                );
             }
         }
 
