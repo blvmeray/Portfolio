@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC RGB FIELD (VORTEX SWIRL + HIGH SATURATION)
+// 4. GENERATIVE KINETIC RGB FIELD (TIGHT RESPONSIVE CURSOR TRACKING)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -223,7 +223,8 @@ function initHeroCanvas() {
             }
         }
 
-        const hoverRadius = 240;
+        // Reduced hover radius for a tight, crisp interaction ring
+        const hoverRadius = 150;
 
         for (let i = 0; i < grid.length; i++) {
             const p = grid[i];
@@ -237,29 +238,29 @@ function initHeroCanvas() {
                 }
             }
 
-            // 2. Background scroll wave
+            // 2. Background scroll displacement
             p.vy -= scrollVelocity * 0.02;
 
-            // 3. Cursor attraction + slow rotational vortex force when cursor moves
+            // 3. Tight cursor proximity dynamics
             const dx = mouse.x - p.x;
             const dy = mouse.y - p.y;
             const dist = Math.hypot(dx, dy);
 
             if (dist < hoverRadius && dist > 0) {
                 const normDist = dist / hoverRadius;
-                const smoothFactor = Math.pow(1 - normDist, 2.5);
+                const smoothFactor = Math.pow(1 - normDist, 2);
 
                 const angle = Math.atan2(dy, dx);
-                const impulse = smoothFactor * 10;
+                const impulse = smoothFactor * 4.5;
 
                 // Radial repulsion
                 p.vx -= Math.cos(angle) * impulse;
                 p.vy -= Math.sin(angle) * impulse;
 
-                // Rotational vortex spin when mouse moves
+                // Rotational vortex spin directly tracking cursor movement
                 if (mouseSpeed > 0.1) {
-                    const spinFactor = smoothFactor * Math.min(mouseSpeed * 0.08, 2.5);
-                    const tangentAngle = angle + Math.PI / 2; // 90 degree perpendicular force
+                    const spinFactor = smoothFactor * Math.min(mouseSpeed * 0.05, 1.8);
+                    const tangentAngle = angle + Math.PI / 2;
                     p.vx += Math.cos(tangentAngle) * spinFactor;
                     p.vy += Math.sin(tangentAngle) * spinFactor;
                 }
@@ -267,15 +268,16 @@ function initHeroCanvas() {
                 p.vy -= scrollVelocity * smoothFactor * 0.3;
             }
 
-            // Spring return force
+            // 4. Snappy spring return force (stiffer spring + higher friction damping)
             const springDx = p.baseX - p.x;
             const springDy = p.baseY - p.y;
 
-            p.vx += springDx * 0.075;
-            p.vy += springDy * 0.075;
+            p.vx += springDx * 0.14;
+            p.vy += springDy * 0.14;
 
-            p.vx *= 0.81;
-            p.vy *= 0.81;
+            // Higher damping kills momentum quickly when cursor passes
+            p.vx *= 0.70;
+            p.vy *= 0.70;
 
             p.x += p.vx;
             p.y += p.vy;
@@ -284,14 +286,13 @@ function initHeroCanvas() {
             const renderY = p.y;
 
             const displacement = Math.hypot(p.x - p.baseX, p.y - p.baseY);
-            const activity = Math.min(displacement / 18, 1.0);
+            const activity = Math.min(displacement / 12, 1.0);
 
-            const splitOffset = Math.min(displacement * 0.4 + absScrollVel * 0.08, 10);
+            const splitOffset = Math.min(displacement * 0.45 + absScrollVel * 0.08, 10);
             const streak = Math.min(absScrollVel * 0.2, 5);
 
-            // Vibrant, high-saturation color palette
+            // High-saturation color palette & Chromatic aberration
             if (displacement < 0.3 && streak < 0.3 && Math.abs(glitchX) < 0.5) {
-                // Boosted idle pixel brightness & glow tone
                 drawNode(renderX, renderY, p.size, p.isCross, 'rgba(180, 245, 255, 0.38)', 0);
             } else {
                 const isGlitched = Math.abs(glitchX) > 0.5;
