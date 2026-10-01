@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC FIELD (RED TRAIL + SELECTIVE 'V' PATTERN)
+// 4. GENERATIVE KINETIC FIELD (PSEUDO-RANDOM 'V' SPARKLE)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -122,7 +122,9 @@ function initHeroCanvas() {
                     y: r * spacing,
                     vx: 0,
                     vy: 0,
-                    symbol: (c + r) % 3 === 0 ? "V" : "—"
+                    symbol: (c + r) % 3 === 0 ? "V" : "—",
+                    // Static deterministic seed per grid cell for pseudo-random sparkle phase
+                    seed: (c * 17 + r * 31) % 100
                 });
             }
         }
@@ -190,7 +192,7 @@ function initHeroCanvas() {
         mouse.vy *= 0.85;
         const mouseSpeed = Math.hypot(mouse.vx, mouse.vy);
 
-        const time = Date.now() * 0.002;
+        const time = Date.now() * 0.0015;
 
         // Scanline glitch slices
         const activeGlitches = [];
@@ -220,16 +222,12 @@ function initHeroCanvas() {
                 }
             }
 
-            // 2. Continuous Set Pattern for "V" symbols (Diagonal wave glow/glitch)
-            let patternGlow = 0;
-            let patternGlitchX = 0;
-
+            // 2. Pseudo-random Sparkle Math for "V" symbols (No directional movement)
+            let sparkleGlow = 0;
             if (p.symbol === "V") {
-                // Wave angle math creating rhythmic pulses across the grid
-                const wave = Math.sin(time + p.baseX * 0.006 + p.baseY * 0.006);
-                if (wave > 0.6) {
-                    patternGlow = (wave - 0.6) / 0.4; // Normalized 0 to 1 intensity
-                    patternGlitchX = Math.sin(time * 8 + p.baseY) * 2.5 * patternGlow;
+                const wave = Math.sin(time * 2.2 + p.seed * 3.7) * Math.cos(time * 1.3 + p.seed * 1.9);
+                if (wave > 0.45) {
+                    sparkleGlow = (wave - 0.45) / 0.55; // Intensity from 0 to 1
                 }
             }
 
@@ -276,7 +274,7 @@ function initHeroCanvas() {
             p.x += p.vx;
             p.y += p.vy;
 
-            const renderX = p.x + glitchX + patternGlitchX;
+            const renderX = p.x + glitchX;
             const renderY = p.y;
 
             const displacement = Math.hypot(p.x - p.baseX, p.y - p.baseY);
@@ -284,15 +282,15 @@ function initHeroCanvas() {
             const isNearCursor = dist < hoverRadius;
 
             if (p.symbol === "V") {
-                // 'V' UNDER CURSOR OR TRAIL ACTIVE
                 if (isNearCursor || activity > 0.05) {
+                    // Active state: Under cursor or in physical trail
                     const normDist = isNearCursor ? dist / hoverRadius : 1.0;
                     const proximity = isNearCursor ? Math.pow(1 - normDist, 2) : 0;
                     const intensity = Math.max(proximity, activity);
 
                     const splitOffset = Math.min(displacement * 0.22 + absScrollVel * 0.05, 5.0);
 
-                    // Red Glow Layer (Matching Trail & Under Cursor)
+                    // Red Glow Layer
                     ctx.fillStyle = `rgba(255, 30, 80, ${0.15 + intensity * 0.45})`;
                     ctx.fillText(p.symbol, renderX - splitOffset * 0.5, renderY - splitOffset * 0.2);
 
@@ -300,12 +298,12 @@ function initHeroCanvas() {
                     ctx.fillStyle = `rgba(255, 45, 90, ${0.40 + intensity * 0.60})`;
                     ctx.fillText(p.symbol, renderX, renderY);
 
-                } else if (patternGlow > 0) {
-                    // Patterned Glitch/Glow state at rest
-                    ctx.fillStyle = `rgba(255, 30, 80, ${0.10 + patternGlow * 0.30})`;
-                    ctx.fillText(p.symbol, renderX - 1, renderY);
+                } else if (sparkleGlow > 0) {
+                    // Scattered Sparkle Twinkle
+                    ctx.fillStyle = `rgba(255, 40, 90, ${0.10 + sparkleGlow * 0.25})`;
+                    ctx.fillText(p.symbol, renderX - 0.5, renderY);
 
-                    ctx.fillStyle = `rgba(255, 60, 100, ${0.25 + patternGlow * 0.55})`;
+                    ctx.fillStyle = `rgba(255, 80, 120, ${0.20 + sparkleGlow * 0.60})`;
                     ctx.fillText(p.symbol, renderX, renderY);
 
                 } else {
@@ -314,13 +312,11 @@ function initHeroCanvas() {
                     ctx.fillText(p.symbol, renderX, renderY);
                 }
             } else {
-                // '—' (EM DASH) - STAYS MUTED / MONOCHROME (NO RED HOVER LIGHTING)
+                // '—' (EM DASH) - STAYS MUTED / MONOCHROME
                 if (activity > 0.05) {
-                    // Trail displacement for dashes uses soft white/neutral tint
                     ctx.fillStyle = `rgba(255, 255, 255, ${0.12 + activity * 0.35})`;
                     ctx.fillText(p.symbol, renderX, renderY);
                 } else {
-                    // Clean Idle Dash
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
                     ctx.fillText(p.symbol, renderX, renderY);
                 }
