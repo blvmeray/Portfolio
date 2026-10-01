@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC FIELD (WIDE-WINGED CROSSBAR SYMBOL)
+// 4. GENERATIVE KINETIC FIELD (ZOOMED-IN UPSIDE-DOWN "A" GRID)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -103,7 +103,9 @@ function initHeroCanvas() {
     let width, height;
     let grid = [];
     let cols = 0, rows = 0;
-    const spacing = 36;
+    
+    // Increased grid spacing for larger zoomed-in symbols
+    const spacing = 48;
 
     const mouse = { x: -1000, y: -1000, vx: 0, vy: 0, lastX: -1000, lastY: -1000 };
     let lastScrollY = window.scrollY;
@@ -176,17 +178,15 @@ function initHeroCanvas() {
 
     resize();
 
-    // Helper: Draws "V" and strokes a wide crossbar extending past both sides
+    // Draw larger composite upside-down "A" symbol with scaled crossbar width & stroke
     function drawCompositeSymbol(targetX, targetY) {
-        // Draw V base
         ctx.fillText("V", targetX, targetY);
 
-        // Draw wide horizontal crossbar through V
         ctx.strokeStyle = ctx.fillStyle;
-        ctx.lineWidth = 1.6;
+        ctx.lineWidth = 2.4;
         ctx.beginPath();
-        ctx.moveTo(targetX - 7, targetY - 1);
-        ctx.lineTo(targetX + 7, targetY - 1);
+        ctx.moveTo(targetX - 11, targetY - 1.5);
+        ctx.lineTo(targetX + 11, targetY - 1.5);
         ctx.stroke();
     }
 
@@ -194,7 +194,8 @@ function initHeroCanvas() {
         ctx.fillStyle = '#050508';
         ctx.fillRect(0, 0, width, height);
 
-        ctx.font = '700 12px "Space Mono", monospace, sans-serif';
+        // Zoomed-in font size (20px)
+        ctx.font = '700 20px "Space Mono", monospace, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
@@ -219,7 +220,7 @@ function initHeroCanvas() {
             }
         }
 
-        const hoverRadius = 240;
+        const hoverRadius = 260;
 
         // Physics simulation & rendering
         for (let i = 0; i < grid.length; i++) {
@@ -285,11 +286,11 @@ function initHeroCanvas() {
             const renderY = p.y;
 
             if (isNearCursor) {
-                // CURSOR HOVER: CHROMATIC ABERRATION SPLIT ON THE WIDE-WINGED SYMBOL
+                // CURSOR HOVER: CHROMATIC ABERRATION SPLIT
                 const normDist = dist / hoverRadius;
                 const proximity = Math.pow(1 - normDist, 2);
 
-                const splitOffset = Math.min(displacement * 0.35 + absScrollVel * 0.08 + proximity * 6.0, 9.0);
+                const splitOffset = Math.min(displacement * 0.35 + absScrollVel * 0.08 + proximity * 7.0, 11.0);
 
                 // Cyan Offset Channel
                 ctx.fillStyle = `rgba(0, 240, 255, ${0.55 + proximity * 0.45})`;
