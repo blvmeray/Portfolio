@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC FIELD (EQUALIZED ABERRATION EFFECT)
+// 4. GENERATIVE KINETIC FIELD (EXPANDING WATER RIPPLE ABERRATION)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -104,6 +104,9 @@ function initHeroCanvas() {
     let grid = [];
     let cols = 0, rows = 0;
     const spacing = 36;
+
+    // Active expanding water ripple events
+    let activeRipples = [];
 
     const mouse = { x: -1000, y: -1000, vx: 0, vy: 0, lastX: -1000, lastY: -1000 };
     let lastScrollY = window.scrollY;
@@ -126,7 +129,8 @@ function initHeroCanvas() {
                     vy: 0,
                     symbol: (c + r) % 3 === 0 ? "V" : "—",
                     seed: (c * 137 + r * 283) % 1000,
-                    sparkleGlow: 0
+                    sparkleGlow: 0,
+                    isSparkling: false
                 });
             }
         }
@@ -212,7 +216,7 @@ function initHeroCanvas() {
 
         const hoverRadius = 240;
 
-        // Pass 1: Compute sparse fairy light sparkle glow
+        // Pass 1: Sparse fairy lights & water drop wave creation
         for (let i = 0; i < grid.length; i++) {
             const p = grid[i];
             p.sparkleGlow = 0;
@@ -224,11 +228,37 @@ function initHeroCanvas() {
 
                 if (wave > 0.88) {
                     p.sparkleGlow = Math.pow((wave - 0.88) / 0.12, 2.2);
+
+                    // Spawn expanding water wave on sparkle ignition
+                    if (!p.isSparkling) {
+                        p.isSparkling = true;
+                        activeRipples.push({
+                            x: p.x,
+                            y: p.y,
+                            radius: 0,
+                            maxRadius: 280,
+                            speed: 2.4,
+                            intensity: 1.0
+                        });
+                    }
+                } else {
+                    p.isSparkling = false;
                 }
             }
         }
 
-        // Pass 2: Physics simulation & rendering
+        // Pass 2: Propagate active ripples outward like water waves
+        for (let r = activeRipples.length - 1; r >= 0; r--) {
+            const rip = activeRipples[r];
+            rip.radius += rip.speed;
+            rip.intensity *= 0.981; // Soft exponential decay as wave spreads
+
+            if (rip.intensity < 0.02 || rip.radius > rip.maxRadius) {
+                activeRipples.splice(r, 1);
+            }
+        }
+
+        // Pass 3: Physics simulation & rendering
         for (let i = 0; i < grid.length; i++) {
             const p = grid[i];
 
@@ -298,16 +328,14 @@ function initHeroCanvas() {
                     const proximity = isNearCursor ? Math.pow(1 - normDist, 2) : 0;
                     const intensity = Math.max(proximity, activity);
 
-                    // Soft ambient red glow
                     ctx.fillStyle = `rgba(255, 30, 80, ${0.25 + intensity * 0.45})`;
                     ctx.fillText(p.symbol, renderX, renderY);
 
-                    // Core bright neon red
                     ctx.fillStyle = `rgba(255, 60, 110, ${0.60 + intensity * 0.40})`;
                     ctx.fillText(p.symbol, renderX, renderY);
 
                 } else if (p.sparkleGlow > 0) {
-                    // Ultra-sparse fairy light sparkle
+                    // Fairy light sparkle
                     ctx.fillStyle = `rgba(255, 50, 90, ${0.20 + p.sparkleGlow * 0.40})`;
                     ctx.fillText(p.symbol, renderX, renderY);
 
@@ -321,52 +349,55 @@ function initHeroCanvas() {
                 }
 
             } else {
-                // '—' (EM DASH) - MATCHED CHROMATIC ABERRATION FOR BOTH CURSOR AND FAIRY LIGHT INTERACTIONS
+                // '—' (EM DASH) - WATER-WAVE TRAVELLING CHROMATIC ABERRATION & GLITCH
 
-                // Check adjacent neighbor cells for sparkling 'V'
-                let neighborSparkle = 0;
-                const neighbors = [
-                    (p.r - 1) * cols + p.c,
-                    (p.r + 1) * cols + p.c,
-                    p.r * cols + (p.c - 1),
-                    p.r * cols + (p.c + 1)
-                ];
+                // Compute travelling water-wave ripple intensity from active wave fronts
+                let waveIntensity = 0;
+                const ringWidth = 42; // Thickness of the expanding ripple ring
 
-                for (let n = 0; n < neighbors.length; n++) {
-                    const idx = neighbors[n];
-                    if (idx >= 0 && idx < grid.length) {
-                        if (grid[idx].symbol === "V" && grid[idx].sparkleGlow > neighborSparkle) {
-                            neighborSparkle = grid[idx].sparkleGlow;
+                for (let r = 0; r < activeRipples.length; r++) {
+                    const rip = activeRipples[r];
+                    const distToCenter = Math.hypot(p.x - rip.x, p.y - rip.y);
+                    const delta = Math.abs(distToCenter - rip.radius);
+
+                    if (delta < ringWidth) {
+                        // Smooth cosine wave crest along the expanding ring
+                        const waveFactor = Math.cos((delta / ringWidth) * (Math.PI / 2)) * rip.intensity;
+                        if (waveFactor > waveIntensity) {
+                            waveIntensity = waveFactor;
                         }
                     }
                 }
 
+                // Glitch offset travelling along the wave front
                 let dashGlitchX = 0;
-                if (neighborSparkle > 0.05) {
-                    dashGlitchX = (Math.random() - 0.5) * (5.0 * neighborSparkle);
+                if (waveIntensity > 0.05) {
+                    dashGlitchX = (Math.random() - 0.5) * (5.5 * waveIntensity);
                 }
 
                 const renderX = p.x + glitchX + dashGlitchX;
                 const renderY = p.y;
 
-                if (isNearCursor || neighborSparkle > 0.05) {
-                    // Equalized Chromatic Aberration formula
-                    const normDist = isNearCursor ? dist / hoverRadius : 1.0;
-                    const cursorProximity = isNearCursor ? Math.pow(1 - normDist, 2) : 0;
-                    const intensity = Math.max(cursorProximity, neighborSparkle);
+                const normDist = isNearCursor ? dist / hoverRadius : 1.0;
+                const cursorProximity = isNearCursor ? Math.pow(1 - normDist, 2) : 0;
+                
+                // Combine cursor proximity and wave ripple front
+                const combinedIntensity = Math.max(cursorProximity, waveIntensity);
 
-                    const splitOffset = Math.min(displacement * 0.35 + absScrollVel * 0.08 + intensity * 6.0, 9.0);
+                if (combinedIntensity > 0.05) {
+                    // Travelling Chromatic Aberration matching cursor quality
+                    const splitOffset = Math.min(displacement * 0.35 + absScrollVel * 0.08 + combinedIntensity * 6.0, 9.0);
 
                     // Cyan Offset Channel
-                    ctx.fillStyle = `rgba(0, 240, 255, ${0.55 + intensity * 0.45})`;
+                    ctx.fillStyle = `rgba(0, 240, 255, ${0.55 + combinedIntensity * 0.45})`;
                     ctx.fillText(p.symbol, renderX + splitOffset, renderY + splitOffset * 0.3);
 
                     // Red Offset Channel
-                    ctx.fillStyle = `rgba(255, 30, 80, ${0.55 + intensity * 0.45})`;
+                    ctx.fillStyle = `rgba(255, 30, 80, ${0.55 + combinedIntensity * 0.45})`;
                     ctx.fillText(p.symbol, renderX - splitOffset, renderY - splitOffset * 0.3);
 
                     // Core White Text
-                    ctx.fillStyle = `rgba(255, 255, 255, ${0.85 + intensity * 0.15})`;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.85 + combinedIntensity * 0.15})`;
                     ctx.fillText(p.symbol, renderX, renderY);
 
                 } else if (activity > 0.05) {
