@@ -93,7 +93,7 @@ if (modal) {
 }
 
 // ==========================================================
-// 4. GENERATIVE KINETIC FIELD (CLEAN GRID & CURSOR ABERRATION)
+// 4. GENERATIVE KINETIC FIELD (COMPOSITE "V" + "—" SYMBOL)
 // ==========================================================
 function initHeroCanvas() {
     const canvas = document.getElementById('heroCanvas');
@@ -123,8 +123,7 @@ function initHeroCanvas() {
                     x: c * spacing,
                     y: r * spacing,
                     vx: 0,
-                    vy: 0,
-                    symbol: (c + r) % 3 === 0 ? "V" : "—"
+                    vy: 0
                 });
             }
         }
@@ -176,6 +175,12 @@ function initHeroCanvas() {
     });
 
     resize();
+
+    // Helper function to render the custom composite upside-down 'A' symbol
+    function drawCompositeSymbol(targetX, targetY) {
+        ctx.fillText("V", targetX, targetY);
+        ctx.fillText("—", targetX, targetY - 1); // Micro-offset vertically for perfect crossbar alignment
+    }
 
     function animate() {
         ctx.fillStyle = '#050508';
@@ -271,57 +276,34 @@ function initHeroCanvas() {
             const renderX = p.x + glitchX;
             const renderY = p.y;
 
-            if (p.symbol === "V") {
-                // 'V' SYMBOLS: CLEAN NEON RED ON INTERACTION (NO CHROMATIC ABERRATION SPLIT)
-                if (isNearCursor || activity > 0.05) {
-                    const normDist = isNearCursor ? dist / hoverRadius : 1.0;
-                    const proximity = isNearCursor ? Math.pow(1 - normDist, 2) : 0;
-                    const intensity = Math.max(proximity, activity);
+            if (isNearCursor) {
+                // CURSOR HOVER: CHROMATIC ABERRATION SPLIT ON THE COMPOSITE SYMBOL
+                const normDist = dist / hoverRadius;
+                const proximity = Math.pow(1 - normDist, 2);
 
-                    // Soft ambient red glow
-                    ctx.fillStyle = `rgba(255, 30, 80, ${0.25 + intensity * 0.45})`;
-                    ctx.fillText(p.symbol, renderX, renderY);
+                const splitOffset = Math.min(displacement * 0.35 + absScrollVel * 0.08 + proximity * 6.0, 9.0);
 
-                    // Core bright neon red
-                    ctx.fillStyle = `rgba(255, 60, 110, ${0.60 + intensity * 0.40})`;
-                    ctx.fillText(p.symbol, renderX, renderY);
+                // Cyan Offset Channel
+                ctx.fillStyle = `rgba(0, 240, 255, ${0.55 + proximity * 0.45})`;
+                drawCompositeSymbol(renderX + splitOffset, renderY + splitOffset * 0.3);
 
-                } else {
-                    // Clean idle 'V'
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-                    ctx.fillText(p.symbol, renderX, renderY);
-                }
+                // Red Offset Channel
+                ctx.fillStyle = `rgba(255, 30, 80, ${0.55 + proximity * 0.45})`;
+                drawCompositeSymbol(renderX - splitOffset, renderY - splitOffset * 0.3);
+
+                // Core White Channel
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.85 + proximity * 0.15})`;
+                drawCompositeSymbol(renderX, renderY);
+
+            } else if (activity > 0.05) {
+                // Kinetic Motion Trail State
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.75 + activity * 0.25})`;
+                drawCompositeSymbol(renderX, renderY);
 
             } else {
-                // '—' (EM DASH): BASE OPACITY 0.75 + EXCLUSIVE CURSOR HOVER CHROMATIC ABERRATION
-                if (isNearCursor) {
-                    const normDist = dist / hoverRadius;
-                    const proximity = Math.pow(1 - normDist, 2);
-
-                    const splitOffset = Math.min(displacement * 0.35 + absScrollVel * 0.08 + proximity * 6.0, 9.0);
-
-                    // Cyan Offset Channel
-                    ctx.fillStyle = `rgba(0, 240, 255, ${0.55 + proximity * 0.45})`;
-                    ctx.fillText(p.symbol, renderX + splitOffset, renderY + splitOffset * 0.3);
-
-                    // Red Offset Channel
-                    ctx.fillStyle = `rgba(255, 30, 80, ${0.55 + proximity * 0.45})`;
-                    ctx.fillText(p.symbol, renderX - splitOffset, renderY - splitOffset * 0.3);
-
-                    // Core White Text
-                    ctx.fillStyle = `rgba(255, 255, 255, ${0.85 + proximity * 0.15})`;
-                    ctx.fillText(p.symbol, renderX, renderY);
-
-                } else if (activity > 0.05) {
-                    // Kinetic Trail state
-                    ctx.fillStyle = `rgba(255, 255, 255, ${0.75 + activity * 0.25})`;
-                    ctx.fillText(p.symbol, renderX, renderY);
-
-                } else {
-                    // Base Opacity set to 0.75
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-                    ctx.fillText(p.symbol, renderX, renderY);
-                }
+                // Idle Grid State at 0.75 Opacity
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+                drawCompositeSymbol(renderX, renderY);
             }
         }
 
