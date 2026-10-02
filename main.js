@@ -3,26 +3,26 @@
 // ==========================================================
 const artworks = [
     {
-        id: "raven-01",
-        title: "Raven Series // Visual Distortion 01",
-        tags: "Natron • Processing • Chromatic Aberration",
-        description: "Kinetic motion study exploring RGB channel splitting and dithered particle grids.",
+        id: "Placeholder",
+        title: "Placaholder",
+        tags: "Placeholder",
+        description: "Placeholder",
         mediaType: "placeholder",
         src: ""
     },
     {
-        id: "arthur-loop",
-        title: "Arthur Loop // Algorithmic Bloom",
-        tags: "Generative • Radial Geometry • 60 FPS",
-        description: "Symmetrical shredding transition moving into organic radial bloom patterns.",
+        id: "Placeholder",
+        title: "Placeholder // ",
+        tags: "Placeholder",
+        description: "Placeholder",
         mediaType: "placeholder",
         src: ""
     },
     {
-        id: "spectral-grid",
-        title: "Quantized Pulse",
-        tags: "Processing • Custom Shaders",
-        description: "High-contrast algorithmic grid manipulation with reactive particle dynamics.",
+        id: "Placeholder",
+        title: "Placeholder",
+        tags: "Placeholder",
+        description: "Placeholder",
         mediaType: "placeholder",
         src: ""
     }
